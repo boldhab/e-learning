@@ -50,9 +50,58 @@ switch ($resource) {
         $controller = new \Controllers\AuthController();
         if ($id === 'login') {
             $controller->login();
+        } elseif ($id === 'register') {
+            $controller->register();
         } else {
             http_response_code(404);
             echo json_encode(['error' => 'Auth action not found']);
+        }
+        break;
+
+    case 'classes':
+        $controller = new \Controllers\AdminController();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createClass();
+        }
+        break;
+
+    case 'subjects':
+        $controller = new \Controllers\AdminController();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createSubject();
+        }
+        break;
+
+    case 'admin':
+        $controller = new \Controllers\AdminController();
+        if ($id === 'assign' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->assignTeacher();
+        } elseif ($id === 'assign-student' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->assignStudentToClass();
+        } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createYear();
+        } elseif ($id === 'active-year' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->setActiveYear();
+        }
+        break;
+
+    case 'student':
+        $controller = new \Controllers\StudentController();
+        if ($id === 'schedule' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getSchedule();
+        } elseif ($id === 'course-content' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getCourseContent();
+        }
+        break;
+
+    case 'teacher':
+        $controller = new \Controllers\TeacherController();
+        if ($id === 'chapters' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createChapter();
+        } elseif ($id === 'notes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->addNote();
+        } elseif ($id === 'materials' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->addMaterial();
         }
         break;
 
