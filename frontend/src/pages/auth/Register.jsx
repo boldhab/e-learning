@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   Mail, Lock, User, UserPlus, GraduationCap, School, 
@@ -191,7 +191,7 @@ const Register = () => {
                   <Star size={20} className="text-yellow-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">"Best decision for my career!"</p>
+                  <p className="text-sm font-medium">&ldquo;Best decision for my career!&rdquo;</p>
                   <p className="text-xs text-teal-200">— Sarah Johnson, Alumni</p>
                 </div>
               </div>
@@ -496,7 +496,7 @@ const Register = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;

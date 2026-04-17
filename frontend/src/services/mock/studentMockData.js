@@ -19,44 +19,72 @@ export const studentLearningData = {
   ],
 };
 
+// services/mock/studentMockData.js
 export const studentAssignmentsData = [
   {
     id: 1,
-    title: 'Build a Weather Dashboard',
-    course: 'Advanced Web Development with React',
-    dueDate: '2026-04-25',
+    title: "React Hooks Deep Dive",
+    course: "Advanced React Development",
+    description: "Implement custom hooks and understand the hook lifecycle",
+    dueDate: "2024-12-20",
     points: 100,
-    status: 'pending',
-    submissionType: 'GitHub repository link',
+    status: "pending",
+    submissionType: "File Upload",
+    attachment: "/materials/react-hooks-guide.pdf",
+    createdAt: "2024-12-01"
   },
   {
     id: 2,
-    title: 'REST API Security Checklist',
-    course: 'Full-Stack PHP Mastery',
-    dueDate: '2026-04-27',
-    points: 70,
-    status: 'pending',
-    submissionType: 'PDF upload',
+    title: "Node.js REST API",
+    course: "Backend Development",
+    description: "Build a RESTful API with Express and MongoDB",
+    dueDate: "2024-12-18",
+    points: 150,
+    status: "submitted",
+    submissionType: "GitHub Link",
+    attachment: "/materials/api-spec.pdf",
+    createdAt: "2024-12-02"
   },
   {
     id: 3,
-    title: 'Final Portfolio Wireframe',
-    course: 'UI/UX Design Principles',
-    dueDate: '2026-04-20',
-    points: 50,
-    status: 'submitted',
-    submissionType: 'Figma link',
+    title: "Database Design Project",
+    course: "Database Systems",
+    description: "Design and implement a normalized database schema",
+    dueDate: "2024-12-15",
+    points: 200,
+    status: "graded",
+    grade: 185,
+    feedback: "Excellent work! Great normalization and indexing strategy.",
+    submissionType: "File Upload",
+    attachment: "/materials/db-template.sql",
+    createdAt: "2024-11-28"
   },
   {
     id: 4,
-    title: 'Component Refactor Reflection',
-    course: 'Advanced Web Development with React',
-    dueDate: '2026-04-15',
-    points: 40,
-    status: 'graded',
-    score: 36,
-    submissionType: 'Markdown report',
+    title: "UI/UX Case Study",
+    course: "User Experience Design",
+    description: "Analyze and redesign a popular app interface",
+    dueDate: "2024-12-22",
+    points: 120,
+    status: "pending",
+    submissionType: "PDF Upload",
+    attachment: "/materials/case-study-template.pdf",
+    createdAt: "2024-12-05"
   },
+  {
+    id: 5,
+    title: "Algorithm Analysis",
+    course: "Data Structures & Algorithms",
+    description: "Implement and analyze sorting algorithms",
+    dueDate: "2024-12-10",
+    points: 80,
+    status: "graded",
+    grade: 75,
+    feedback: "Good implementation, but optimize the merge sort.",
+    submissionType: "Code Upload",
+    attachment: "/materials/algorithms-guide.pdf",
+    createdAt: "2024-12-03"
+  }
 ];
 
 export const studentGradesData = {

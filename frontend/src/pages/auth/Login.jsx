@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
-  Mail, Lock, LogIn, GraduationCap, 
+  Mail, Lock, LogIn,
   Eye, EyeOff, Sparkles, ArrowRight, 
   Shield, Users, BookOpen, CheckCircle,
   Fingerprint
@@ -324,7 +324,7 @@ const Login = () => {
 
             {/* Sign Up Link */}
             <p className="mt-8 text-center text-sm text-slate-500">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link 
                 to="/register" 
                 className="text-indigo-600 font-bold hover:text-indigo-700 transition-all inline-flex items-center gap-1 group"
@@ -344,7 +344,7 @@ const Login = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;
