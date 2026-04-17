@@ -1,10 +1,17 @@
 import storage from '../utils/localStorage';
+import { mockUsers } from './mock/mockData';
 
 const USER_KEY = 'user';
 
 const resolveRole = (email = '') => {
-  if (email.includes('admin')) return 'admin';
-  if (email.includes('teacher')) return 'teacher';
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = mockUsers.find(
+    (candidate) => candidate.email.toLowerCase() === normalizedEmail
+  );
+
+  if (existingUser?.role) return existingUser.role;
+  if (normalizedEmail.includes('admin')) return 'admin';
+  if (normalizedEmail.includes('teacher')) return 'teacher';
   return 'student';
 };
 
