@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, LogIn, GraduationCap, Github } from 'lucide-react';
+import { Mail, Lock, LogIn, GraduationCap } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -141,7 +141,6 @@ const Login = () => {
                 Google
               </button>
               <button type="button" className="flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors font-semibold text-slate-600 text-sm">
-                <Github size={18} />
                 GitHub
               </button>
             </div>
