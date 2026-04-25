@@ -96,7 +96,9 @@ switch ($resource) {
 
     case 'teacher':
         $controller = new \Controllers\TeacherController();
-        if ($id === 'chapters' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($id === 'courses' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getMyCourses();
+        } elseif ($id === 'chapters' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createChapter();
         } elseif ($id === 'notes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->addNote();

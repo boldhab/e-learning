@@ -25,6 +25,57 @@ class TeacherController {
     }
 
     /**
+     * Get all courses assigned to the logged-in teacher
+     */
+    public function getMyCourses() {
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? '';
+        
+        if (strpos($authHeader, 'Bearer ') !== 0) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+
+        $token = substr($authHeader, 7);
+        $decoded = JwtHandler::validateToken($token);
+
+        if (!$decoded || $decoded['role'] !== 'teacher') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Teacher access only']);
+            return;
+        }
+
+        $teacherId = $decoded['id'];
+
+        $stmt = $this->db->prepare("
+            SELECT c.*, cl.name as class_name, s.name as subject_name 
+            FROM courses c
+            JOIN classes cl ON c.class_id = cl.id
+            JOIN subjects s ON s.name = (SELECT teaching_subject FROM users WHERE id = c.instructor_id)
+            WHERE c.instructor_id = :teacher_id
+            ORDER BY c.created_at DESC
+        ");
+        
+        // Simpler query if we don't want to rely on the teaching_subject match for now
+        $stmt = $this->db->prepare("
+            SELECT c.*, cl.name as class_name 
+            FROM courses c
+            LEFT JOIN classes cl ON c.class_id = cl.id
+            WHERE c.instructor_id = :teacher_id
+            ORDER BY c.created_at DESC
+        ");
+        
+        $stmt->execute(['teacher_id' => $teacherId]);
+        $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'status' => 'success',
+            'courses' => $courses
+        ]);
+    }
+
+    /**
      * Verify if the request is from an authorized Teacher for the specific course
      */
     private function verifyTeacher($courseId) {

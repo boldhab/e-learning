@@ -11,6 +11,10 @@ import Register from '../pages/auth/Register';
 import NotFound from '../pages/errors/NotFound';
 import { PagePlaceholder } from '../components/common/PagePlaceholder';
 
+// Teacher Pages
+import TeacherDashboard from '../pages/teacher/TeacherDashboard';
+import CourseContentEditor from '../pages/teacher/CourseContentEditor';
+
 const ComingSoonPage = () => (
   <PagePlaceholder
     variant="comingSoon"
@@ -35,7 +39,8 @@ export const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<ComingSoonPage />} />
+        <Route path="dashboard" element={<TeacherDashboard />} />
+        <Route path="teacher/course/:courseId/edit" element={<CourseContentEditor />} />
         <Route path="*" element={<ComingSoonPage />} />
       </Route>
 

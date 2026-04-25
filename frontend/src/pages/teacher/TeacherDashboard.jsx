@@ -8,11 +8,31 @@ import {
   BarChart, 
   MoreVertical, 
   CheckCircle2, 
-  Clock 
+  Clock,
+  BookOpen,
+  ChevronRight
 } from 'lucide-react';
+import teacherService from '../../services/teacherService';
+import { Link } from 'react-router-dom';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
+  const [courses, setCourses] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const data = await teacherService.getCourses();
+        setCourses(data);
+      } catch (error) {
+        console.error('Failed to load courses');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, []);
   
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10">
@@ -74,26 +94,38 @@ const TeacherDashboard = () => {
           </div>
 
           <div className="space-y-4">
-            {mockCourses.map(course => (
-              <div key={course.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between group hover:border-primary-100 transition-colors">
-                <div className="flex items-center gap-4">
-                  <img src={course.image} className="w-16 h-16 rounded-xl object-cover" alt="" />
-                  <div>
-                    <h4 className="font-bold text-slate-800">{course.title}</h4>
-                    <p className="text-xs text-slate-500">{course.students} Students Enrolled</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="hidden md:block text-right">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Revenue</p>
-                    <p className="text-sm font-bold text-slate-800">$2,450.00</p>
-                  </div>
-                  <button className="p-2 hover:bg-slate-50 rounded-lg text-slate-400">
-                    <MoreVertical size={20} />
-                  </button>
-                </div>
+            {loading ? (
+              <div className="bg-white p-10 rounded-2xl border border-slate-100 flex justify-center items-center">
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
               </div>
-            ))}
+            ) : courses.length > 0 ? (
+              courses.map(course => (
+                <div key={course.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between group hover:border-primary-200 transition-all hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center text-primary-600">
+                      <BookOpen size={32} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">{course.title}</h4>
+                      <p className="text-xs text-slate-500">{course.class_name || 'No Class Assigned'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Link 
+                      to={`/teacher/course/${course.id}/edit`}
+                      className="px-4 py-2 bg-slate-50 hover:bg-primary-50 text-slate-700 hover:text-primary-700 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                    >
+                      Manage Content
+                      <ChevronRight size={16} />
+                    </Link>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white p-10 rounded-2xl border border-slate-100 text-center">
+                 <p className="text-slate-500">You don't have any courses assigned yet.</p>
+              </div>
+            )}
           </div>
         </div>
 
