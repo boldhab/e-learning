@@ -7,6 +7,7 @@ use Models\Subject;
 use Models\Assignment;
 use Models\User;
 use Models\AcademicYear;
+use Models\Course;
 use Core\JwtHandler;
 
 class AdminController {
@@ -15,6 +16,7 @@ class AdminController {
     private $assignmentModel;
     private $userModel;
     private $yearModel;
+    private $courseModel;
 
     public function __construct() {
         $this->classModel = new ClassModel();
@@ -22,6 +24,7 @@ class AdminController {
         $this->assignmentModel = new Assignment();
         $this->userModel = new User();
         $this->yearModel = new AcademicYear();
+        $this->courseModel = new Course();
     }
 
     /**
@@ -235,7 +238,18 @@ class AdminController {
             );
             
             if ($result) {
-                echo json_encode(['status' => 'success', 'message' => 'Teacher assigned successfully']);
+                // AUTOMATICALLY CREATE A COURSE ENTRY
+                // Title format: "Subject Name - Class Name" (e.g. "Mathematics - Grade 10A")
+                $className = $this->classModel->findById($data['class_id'])['name'];
+                $subjectName = $subject['name'];
+                $courseTitle = $subjectName . " - " . $className;
+
+                // Check if course already exists to avoid duplicate teacher content areas
+                if (!$this->courseModel->findExisting($courseTitle, $data['teacher_id'], $data['class_id'])) {
+                    $this->courseModel->create($courseTitle, $data['teacher_id'], $data['class_id']);
+                }
+
+                echo json_encode(['status' => 'success', 'message' => 'Teacher assigned successfully and course area created']);
             }
         } catch (\PDOException $e) {
             http_response_code(500);

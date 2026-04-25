@@ -1,38 +1,8 @@
-/* eslint-disable react/prop-types */
-import { useState, useMemo } from 'react';
-import { mockCourses, mockAssignments } from '../../services/mock/mockData';
-import { studentDashboardData } from '../../services/mock/studentMockData';
 import { useAuth } from '../../context/AuthContext';
-import {
-  BookOpen,
-  Clock,
-  ChevronRight,
-  Play,
-  CalendarDays,
-  CheckCircle2,
-  Timer,
-  Star,
-  ArrowUpRight,
-  Bell,
-  X,
-  RefreshCw,
-  AlertCircle,
-  Calendar,
-  Target,
-  Flame,
-  Zap,
-  Sparkles,
-  Users,
-  MessageSquare,
-  Video,
-  Download,
-  Share2
-} from 'lucide-react';
-import { Card } from '../../components/common/Card';
-import { Button } from '../../components/common/Button';
-import { Link } from 'react-router-dom';
+import studentService from '../../services/studentService';
+import assignmentService from '../../services/assignmentService';
 
-const StatCard = ({ icon: Icon, label, value, color, trend, onClick }) => (
+const StatCard = ({ icon: Icon, label, value, color, onClick }) => (
   <div 
     onClick={onClick}
     className="glass p-5 rounded-2xl flex items-center justify-between group cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
@@ -44,11 +14,6 @@ const StatCard = ({ icon: Icon, label, value, color, trend, onClick }) => (
       <div>
         <p className="text-slate-500 text-sm font-medium">{label}</p>
         <p className="text-2xl font-bold text-slate-800">{value}</p>
-        {trend && (
-          <p className={`text-xs font-semibold mt-1 ${trend > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% from last week
-          </p>
-        )}
       </div>
     </div>
     <ChevronRight size={20} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -58,100 +23,47 @@ const StatCard = ({ icon: Icon, label, value, color, trend, onClick }) => (
 const getDueStatus = (dueDate) => {
   const now = new Date();
   const due = new Date(dueDate);
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const daysLeft = Math.ceil((due - now) / msPerDay);
+  const diffTime = due - now;
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (daysLeft < 0) {
-    return {
-      label: 'Overdue',
-      color: 'bg-rose-50 text-rose-600 border-rose-100',
-      icon: AlertCircle
-    };
-  }
-  if (daysLeft === 0) {
-    return {
-      label: 'Due Today',
-      color: 'bg-amber-50 text-amber-600 border-amber-100',
-      icon: Timer
-    };
-  }
-  if (daysLeft <= 2) {
-    return {
-      label: `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
-      color: 'bg-amber-50 text-amber-600 border-amber-100',
-      icon: Clock
-    };
-  }
-  return {
-    label: `${daysLeft} days left`,
-    color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    icon: Calendar
-  };
-};
-
-const formatDueDate = (dueDate) => {
-  const parsedDate = new Date(dueDate);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  
-  if (parsedDate.toDateString() === today.toDateString()) {
-    return 'Today';
-  }
-  if (parsedDate.toDateString() === tomorrow.toDateString()) {
-    return 'Tomorrow';
-  }
-  return parsedDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
+  if (daysLeft < 0) return { label: 'Overdue', color: 'bg-rose-50 text-rose-600 border-rose-100', icon: AlertCircle };
+  if (daysLeft === 0) return { label: 'Due Today', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: Timer };
+  if (daysLeft <= 2) return { label: `${daysLeft}d left`, color: 'bg-amber-50 text-amber-600 border-amber-100', icon: Clock };
+  return { label: `${daysLeft}d left`, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: Calendar };
 };
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState('week');
+  const [courses, setCourses] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Mock notifications
-  const notifications = [
-    { id: 1, title: 'New Assignment', message: 'React Hooks assignment has been posted', time: '2 hours ago', read: false, type: 'assignment' },
-    { id: 2, title: 'Grade Released', message: 'Your Database project has been graded', time: '1 day ago', read: true, type: 'grade' },
-    { id: 3, title: 'Live Class', message: 'Web Development class starts in 30 min', time: '1 day ago', read: false, type: 'class' },
-  ];
-
-  const enrolledCourses = mockCourses;
-  const totalLessons = enrolledCourses.reduce((total, course) => total + course.lessons.length, 0);
-  const completedLessons = enrolledCourses.reduce(
-    (total, course) => total + course.lessons.filter((lesson) => lesson.complete).length,
-    0
-  );
-  const averageProgress = enrolledCourses.length > 0
-    ? Math.round(enrolledCourses.reduce((total, course) => total + course.progress, 0) / enrolledCourses.length)
-    : 0;
-  
-  const pendingAssignments = mockAssignments.filter((assignment) => assignment.status === 'pending');
-  const nextDeadlines = [...pendingAssignments]
-    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-    .slice(0, 5);
-
-  const recommendedCourse = [...enrolledCourses].sort((a, b) => b.rating - a.rating)[0] || null;
-  
-  // Calculate weekly activity data
-  const weeklyActivity = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map(day => ({
-      day,
-      hours: Math.floor(Math.random() * 4) + 1,
-      lessons: Math.floor(Math.random() * 3)
-    }));
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [courseData, assignmentData] = await Promise.all([
+          studentService.getSchedule(),
+          assignmentService.getStudentAssignments()
+        ]);
+        setCourses(courseData.schedule || []);
+        setAssignments(assignmentData || []);
+      } catch (error) {
+        console.error("Dashboard error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
-  };
+  const pendingCount = assignments.filter(a => a.status === 'pending').length;
+  const gradedCount = assignments.filter(a => a.status === 'graded').length;
+  
+  const upcomingDeadlines = assignments
+    .filter(a => a.status === 'pending')
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+    .slice(0, 4);
 
   const getGreeting = () => {
     const hour = new Date().getHours();

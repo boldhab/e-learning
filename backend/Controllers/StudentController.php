@@ -17,6 +17,7 @@ class StudentController {
     private $chapterModel;
     private $noteModel;
     private $materialModel;
+    private $db;
 
     public function __construct() {
         $this->userModel = new User();
@@ -25,6 +26,7 @@ class StudentController {
         $this->chapterModel = new Chapter();
         $this->noteModel = new ChapterNote();
         $this->materialModel = new Material();
+        $this->db = \Core\Database::getInstance()->getConnection();
     }
 
     /**
@@ -71,8 +73,20 @@ class StudentController {
             return;
         }
 
-        // 4. Fetch all assignments for this class and the active year
-        $schedule = $this->assignmentModel->getByClass($student['class_id'], $activeYear['id']);
+        // 4. Fetch all assignments for this class and the active year, including course_id
+        $stmt = $this->db->prepare("
+            SELECT ca.*, s.name as subject_name, u.name as teacher_name, c.id as course_id
+            FROM class_assignments ca
+            JOIN subjects s ON ca.subject_id = s.id
+            JOIN users u ON ca.teacher_id = u.id
+            LEFT JOIN courses c ON c.class_id = ca.class_id AND c.instructor_id = ca.teacher_id
+            WHERE ca.class_id = :class_id AND ca.academic_year_id = :year_id
+        ");
+        $stmt->execute([
+            'class_id' => $student['class_id'],
+            'year_id' => $activeYear['id']
+        ]);
+        $schedule = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode([
             'status' => 'success',
@@ -123,6 +137,49 @@ class StudentController {
             'status' => 'success',
             'course_id' => $courseId,
             'chapters' => $structuredChapters
+        ]);
+    }
+
+    /**
+     * Get all graded assignments for the student
+     */
+    public function getGrades() {
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? '';
+        
+        if (strpos($authHeader, 'Bearer ') !== 0) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+
+        $token = substr($authHeader, 7);
+        $decoded = JwtHandler::validateToken($token);
+
+        if (!$decoded || $decoded['role'] !== 'student') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $studentId = $decoded['id'];
+
+        $sql = "SELECT ts.*, ta.title as assignment_title, ta.points as total_points, 
+                       ta.due_date, c.title as course_title, u.name as teacher_name
+                FROM task_submissions ts
+                JOIN task_assignments ta ON ts.assignment_id = ta.id
+                JOIN courses c ON ta.course_id = c.id
+                JOIN users u ON ta.teacher_id = u.id
+                WHERE ts.student_id = :student_id AND ts.status = 'graded'
+                ORDER BY ts.graded_at DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['student_id' => $studentId]);
+        $grades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'status' => 'success',
+            'grades' => $grades
         ]);
     }
 }

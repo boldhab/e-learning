@@ -21,6 +21,7 @@ import Dashboard from '../pages/student/Dashboard';
 import Messaging from '../pages/student/Messaging';
 import MyGrades from '../pages/student/MyGrades';
 import MyLearning from '../pages/student/MyLearning';
+import CourseViewer from '../pages/student/CourseViewer';
 import CourseContentEditor from '../pages/teacher/CourseContentEditor';
 import TeacherAssignments from '../pages/teacher/AssignmentCreate';
 import ForumManage from '../pages/teacher/ForumManage';
@@ -132,6 +133,14 @@ export const AppRoutes = () => (
         element={
           <ProtectedRoute allowedRoles={[ROLES.STUDENT]}>
             <MyLearning />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="student/course/:courseId"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.STUDENT]}>
+            <CourseViewer />
           </ProtectedRoute>
         }
       />

@@ -5,6 +5,9 @@
  * Master Entry Point & Router
  */
 
+// Debug log
+file_put_contents(__DIR__ . '/request.log', date('[Y-m-d H:i:s] ') . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . "\n", FILE_APPEND);
+
 // 1. Set CORS Headers (Crucial for React <-> PHP communication)
 header('Access-Control-Allow-Origin: *'); // In production, replace * with your frontend domain
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -121,6 +124,8 @@ switch ($resource) {
             $controller->getSchedule();
         } elseif ($id === 'course-content' && $_SERVER['REQUEST_METHOD'] === 'GET') {
             $controller->getCourseContent();
+        } elseif ($id === 'grades' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getGrades();
         }
         break;
 

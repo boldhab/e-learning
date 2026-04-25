@@ -1,447 +1,175 @@
-import { useState, useMemo } from 'react';
-import { mockCourses } from '../../services/mock/mockData';
-import { studentLearningData } from '../../services/mock/studentMockData';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  BookOpen, 
-  Target, 
-  CheckCircle2,
-  TrendingUp,
-  Clock,
-  Award,
-  Flame,
-  Zap,
-  Play,
-  ChevronRight,
-  Star,
-  Calendar,
-  Search,
-  Sparkles,
-  Brain
+  BookOpen, User, Clock, ChevronRight, 
+  Search, Filter, Book, GraduationCap,
+  Calendar, Loader2, AlertCircle
 } from 'lucide-react';
-import { Card } from '../../components/common/Card';
-import { Button } from '../../components/common/Button';
+import studentService from '../../services/studentService';
 
 const MyLearning = () => {
+  const [schedule, setSchedule] = useState([]);
+  const [classInfo, setClassInfo] = useState(null);
+  const [academicYear, setAcademicYear] = useState('');
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  
-  // Calculate learning statistics
-  const stats = useMemo(() => {
-    const totalCourses = mockCourses.length;
-    const totalLessons = mockCourses.reduce((sum, c) => sum + c.lessons.length, 0);
-    const completedLessons = mockCourses.reduce(
-      (sum, c) => sum + c.lessons.filter(l => l.complete).length, 0
-    );
-    const averageProgress = Math.round(
-      mockCourses.reduce((sum, c) => sum + c.progress, 0) / totalCourses
-    );
-    const totalStudyTime = mockCourses.reduce((sum, c) => sum + (c.studyTime || 0), 0);
-    
-    return {
-      totalCourses,
-      totalLessons,
-      completedLessons,
-      averageProgress,
-      totalStudyTime,
-      completionRate: Math.round((completedLessons / totalLessons) * 100)
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchLearningData = async () => {
+      try {
+        const data = await studentService.getSchedule();
+        setSchedule(data.schedule || []);
+        setClassInfo(data.class);
+        setAcademicYear(data.academic_year);
+      } catch (error) {
+        console.error("Failed to load learning data", error);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchLearningData();
   }, []);
 
-  const filteredCourses = mockCourses.filter(course => {
-    if (searchTerm && !course.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
-    }
-    if (filterStatus === 'active' && course.progress >= 100) return false;
-    if (filterStatus === 'completed' && course.progress < 100) return false;
-    return true;
-  });
+  const filteredSchedule = schedule.filter(item => 
+    item.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.teacher_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getProgressColor = (progress) => {
-    if (progress >= 75) return 'emerald';
-    if (progress >= 40) return 'indigo';
-    if (progress >= 20) return 'amber';
-    return 'slate';
-  };
-
-  const getMotivationalMessage = () => {
-    if (stats.completionRate >= 75) return "Outstanding progress! You're a learning machine! 🚀";
-    if (stats.completionRate >= 50) return "Great momentum! Keep pushing forward! 💪";
-    if (stats.completionRate >= 25) return "Good start! Consistency is key! 📚";
-    return "Every journey begins with a single step. Start today! 🌟";
-  };
+  if (loading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+          <p className="text-slate-500 font-medium animate-pulse">Preparing your learning workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">My Learning</h1>
-          <p className="text-slate-500 mt-1">Track your courses, progress, and learning journey</p>
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider">
+            <GraduationCap size={14} />
+            Academic Year {academicYear}
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">My Learning</h1>
+          <p className="text-slate-500 font-medium">Welcome back! Here are the subjects for <span className="text-indigo-600 font-bold">{classInfo?.name || 'your class'}</span>.</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="primary" leftIcon={<Play size={16} />}>
-            Continue Learning
-          </Button>
-          <Button variant="secondary" leftIcon={<Calendar size={16} />}>
-            Study Plan
-          </Button>
-        </div>
-      </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card variant="white" padding="lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Enrolled Courses</p>
-              <p className="text-2xl font-bold text-slate-800 mt-1">{stats.totalCourses}</p>
-              <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                <TrendingUp size={12} />
-                +2 this month
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <BookOpen size={24} className="text-indigo-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card variant="white" padding="lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Lessons Completed</p>
-              <p className="text-2xl font-bold text-slate-800 mt-1">{stats.completedLessons}/{stats.totalLessons}</p>
-              <div className="mt-2 w-full bg-slate-200 rounded-full h-1.5">
-                <div 
-                  className="bg-emerald-500 h-1.5 rounded-full"
-                  style={{ width: `${stats.completionRate}%` }}
-                />
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 size={24} className="text-emerald-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card variant="white" padding="lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Avg. Progress</p>
-              <p className="text-2xl font-bold text-slate-800 mt-1">{stats.averageProgress}%</p>
-              <div className="mt-2 w-full bg-slate-200 rounded-full h-1.5">
-                <div 
-                  className="bg-indigo-500 h-1.5 rounded-full"
-                  style={{ width: `${stats.averageProgress}%` }}
-                />
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Target size={24} className="text-indigo-600" />
-            </div>
-          </div>
-        </Card>
-        
-        <Card variant="white" padding="lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Study Streak</p>
-              <p className="text-2xl font-bold text-slate-800 mt-1">{studentLearningData.streakDays} days</p>
-              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                <Flame size={12} />
-                Best: 15 days
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-              <Flame size={24} className="text-amber-600" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Motivational Banner */}
-      <Card variant="gradient" padding="lg" className="relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-              <Sparkles size={24} className="text-yellow-300" />
-            </div>
-            <div>
-              <p className="text-white/80 text-sm">Your Learning Journey</p>
-              <p className="text-white font-semibold">{getMotivationalMessage()}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-center">
-              <p className="text-white/70 text-xs">Weekly Goal</p>
-              <p className="text-xl font-bold text-white">{studentLearningData.weeklyGoal}%</p>
-            </div>
-            <div className="w-px h-8 bg-white/20"></div>
-            <div className="text-center">
-              <p className="text-white/70 text-xs">Completed</p>
-              <p className="text-xl font-bold text-white">{studentLearningData.weeklyProgress}%</p>
-            </div>
-          </div>
-        </div>
-        <div className="absolute -bottom-4 -right-4 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
-      </Card>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search courses..."
+        {/* Search Bar */}
+        <div className="relative w-full md:w-80 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search subjects or teachers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm group-hover:border-slate-200"
           />
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filterStatus === 'all' 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            All Courses
-          </button>
-          <button
-            onClick={() => setFilterStatus('active')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filterStatus === 'active' 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            In Progress
-          </button>
-          <button
-            onClick={() => setFilterStatus('completed')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filterStatus === 'completed' 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Completed
-          </button>
+      </div>
+
+      {!classInfo ? (
+        <div className="bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-12 text-center space-y-4">
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-sm text-amber-500">
+            <AlertCircle size={32} />
+          </div>
+          <h3 className="text-xl font-bold text-slate-800">Class Assignment Pending</h3>
+          <p className="text-slate-600 max-w-md mx-auto font-medium">
+            You haven't been assigned to a specific class section yet. Please contact the administration to get access to your subjects.
+          </p>
         </div>
-      </div>
-
-      {/* Courses Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredCourses.map((course) => {
-          const lessonsComplete = course.lessons.filter(l => l.complete).length;
-          const progressColor = getProgressColor(course.progress);
-          const nextLesson = course.lessons.find(l => !l.complete);
-          
-          return (
-            <div key={course.id} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100">
-              {/* Course Image */}
-              <div className="relative h-48 overflow-hidden">
-                <img 
-                  src={course.image} 
-                  alt={course.title} 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="flex items-center justify-between text-white">
-                    <span className="text-xs font-semibold bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
-                      {course.level}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs">
-                      <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                      {course.rating}
-                    </span>
-                  </div>
-                </div>
-              </div>
+      ) : filteredSchedule.length === 0 ? (
+        <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-12 text-center">
+          <Book className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-700">No subjects found</h3>
+          <p className="text-slate-500 font-medium">There are no courses assigned to your class yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredSchedule.map((course, idx) => (
+            <div 
+              key={idx}
+              onClick={() => course.course_id && navigate(`/student/course/${course.course_id}`)}
+              className={`group bg-white rounded-[2.5rem] p-7 border-2 border-slate-50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden ${!course.course_id ? 'opacity-70 grayscale cursor-not-allowed' : ''}`}
+            >
+              {/* Decorative Background Blob */}
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-50 rounded-full group-hover:scale-150 transition-transform duration-700 blur-2xl opacity-50"></div>
               
-              {/* Course Content */}
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800">{course.title}</h3>
-                    <p className="text-sm text-slate-500">{course.instructor}</p>
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 group-hover:scale-110 transition-transform">
+                    <BookOpen size={28} />
                   </div>
-                  {course.progress === 100 && (
-                    <div className="px-2 py-1 bg-emerald-50 rounded-lg">
-                      <span className="text-xs font-semibold text-emerald-600">Completed ✓</span>
+                  {!course.course_id && (
+                    <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1 flex-1">
+                  <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight">
+                    {course.subject_name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-slate-400 font-medium text-sm">
+                    <User size={14} className="text-indigo-400" />
+                    <span>{course.teacher_name}</span>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Format</span>
+                      <span className="font-bold text-slate-700">Digital Notes</span>
                     </div>
-                  )}
-                </div>
-                
-                <p className="text-sm text-slate-600 mb-4 line-clamp-2">{course.description}</p>
-                
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-500">Course Progress</span>
-                    <span className={`text-${progressColor}-600`}>{course.progress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full bg-${progressColor}-500 rounded-full transition-all duration-500`}
-                      style={{ width: `${course.progress}%` }}
-                    />
+                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all transform group-hover:translate-x-1">
+                    <ChevronRight size={20} />
                   </div>
-                </div>
-                
-                {/* Course Stats */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <div className="text-center p-2 bg-slate-50 rounded-lg">
-                    <p className="text-xs text-slate-400">Lessons</p>
-                    <p className="font-bold text-slate-700">{lessonsComplete}/{course.lessons.length}</p>
-                  </div>
-                  <div className="text-center p-2 bg-slate-50 rounded-lg">
-                    <p className="text-xs text-slate-400">Duration</p>
-                    <p className="font-bold text-slate-700">{course.duration}</p>
-                  </div>
-                  <div className="text-center p-2 bg-slate-50 rounded-lg">
-                    <p className="text-xs text-slate-400">Students</p>
-                    <p className="font-bold text-slate-700">{course.students || 234}</p>
-                  </div>
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  {course.progress < 100 && nextLesson && (
-                    <Button variant="primary" fullWidth leftIcon={<Play size={16} />}>
-                      Continue: {nextLesson.title}
-                    </Button>
-                  )}
-                  {course.progress === 100 && (
-                    <Button variant="success" fullWidth leftIcon={<Award size={16} />}>
-                      Certificate Available
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Two Column Layout for Milestones and Recommendations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Quick Stats / Info Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div className="bg-slate-900 rounded-3xl p-6 text-white flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+            <Calendar size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Today is</p>
+            <p className="text-sm font-bold">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </div>
         
-        {/* Milestones Section */}
-        <Card variant="white" padding="lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Target size={20} className="text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800">Learning Milestones</h3>
-              <p className="text-xs text-slate-500">Track your achievements</p>
-            </div>
+        <div className="bg-white rounded-3xl p-6 border-2 border-slate-50 flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+            <BookOpen size={24} />
           </div>
-          
-          <div className="space-y-4">
-            {studentLearningData.milestones.map((milestone) => (
-              <div key={milestone.id} className="relative">
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    milestone.progress === 100 ? 'bg-emerald-100' : 'bg-slate-100'
-                  }`}>
-                    {milestone.progress === 100 ? (
-                      <CheckCircle2 size={16} className="text-emerald-600" />
-                    ) : (
-                      <Clock size={16} className="text-slate-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold text-sm text-slate-800">{milestone.title}</p>
-                        <p className="text-xs text-slate-500">Due {new Date(milestone.dueDate).toLocaleDateString()}</p>
-                      </div>
-                      <span className="text-sm font-semibold text-indigo-600">{milestone.progress}%</span>
-                    </div>
-                    <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5">
-                      <div 
-                        className={`h-1.5 rounded-full transition-all ${
-                          milestone.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'
-                        }`}
-                        style={{ width: `${milestone.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Subjects</p>
+            <p className="text-sm font-black text-slate-800">{schedule.length} Enrolled</p>
           </div>
-        </Card>
+        </div>
 
-        {/* Recommended Topics & Study Tips */}
-        <div className="space-y-6">
-          {/* Recommended Topics */}
-          <Card variant="glass" padding="lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <Sparkles size={20} className="text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800">Recommended for You</h3>
-                <p className="text-xs text-slate-500">Based on your learning pattern</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {studentLearningData.recommendedTopics.map((topic, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                      <Brain size={16} className="text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-800 text-sm">{topic}</p>
-                      <p className="text-xs text-slate-400">Recommended based on your progress</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Study Tips */}
-          <Card variant="white" padding="lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Zap size={20} className="text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-800">Study Tips</h3>
-                <p className="text-xs text-slate-500">Maximize your learning efficiency</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-start gap-2 text-sm text-slate-600">
-                <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span>Take short breaks every 25 minutes (Pomodoro technique)</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm text-slate-600">
-                <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span>Review notes within 24 hours for better retention</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm text-slate-600">
-                <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span>Practice active recall instead of passive reading</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm text-slate-600">
-                <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                <span>Set specific, achievable daily learning goals</span>
-              </div>
-            </div>
-          </Card>
+        <div className="bg-white rounded-3xl p-6 border-2 border-slate-50 flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+            <Clock size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Study Time</p>
+            <p className="text-sm font-black text-slate-800">2.5 Hours / Avg</p>
+          </div>
         </div>
       </div>
     </div>

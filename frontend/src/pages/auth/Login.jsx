@@ -335,7 +335,7 @@ const Login = () => {
             {/* Demo Credentials Hint */}
             <div className="mt-6 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
               <p className="text-xs text-center text-indigo-600">
-                <span className="font-semibold">Demo Credentials:</span> teacher@millennium.edu / teacher123
+                <span className="font-semibold">Demo Credentials:</span> jane@teacher.com / password
               </p>
             </div>
           </div>
