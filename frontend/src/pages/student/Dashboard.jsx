@@ -1,3 +1,27 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Bell,
+  BookOpen,
+  Calendar,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Flame,
+  MessageSquare,
+  RefreshCw,
+  Sparkles,
+  Target,
+  Timer,
+  Users,
+  Award,
+  X,
+  Zap
+} from 'lucide-react';
+import { Card } from '../../components/common/Card';
 import { useAuth } from '../../context/AuthContext';
 import studentService from '../../services/studentService';
 import assignmentService from '../../services/assignmentService';
@@ -37,6 +61,12 @@ const Dashboard = () => {
   const [courses, setCourses] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications] = useState([
+    { id: 1, title: 'Assignment due soon', message: 'Check your latest pending work.', time: 'Just now', read: false },
+    { id: 2, title: 'New course material available', message: 'Your teacher uploaded new content.', time: 'Today', read: true },
+  ]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,6 +107,22 @@ const Dashboard = () => {
     { icon: Target, label: 'Quiz Master', color: 'text-emerald-500', bgColor: 'bg-emerald-50' },
     { icon: Zap, label: 'Fast Learner', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
   ];
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const [courseData, assignmentData] = await Promise.all([
+        studentService.getSchedule(),
+        assignmentService.getStudentAssignments()
+      ]);
+      setCourses(courseData.schedule || []);
+      setAssignments(assignmentData || []);
+    } catch (error) {
+      console.error('Dashboard refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -279,34 +325,32 @@ const Dashboard = () => {
         </div>
       </div>
 
-          {/* Quick Actions */}
-          <Card variant="white" padding="lg" className="rounded-[2rem]">
-            <h3 className="font-black text-slate-800 mb-6">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => navigate('/help')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
-                <MessageSquare size={18} className="text-indigo-600 mb-2" />
-                <p className="font-bold text-slate-700 text-xs">Help Center</p>
-                <p className="text-[10px] text-slate-400 mt-1">Contact Support</p>
-              </button>
-              <button onClick={() => navigate('/student/assignments')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
-                <Target size={18} className="text-indigo-600 mb-2" />
-                <p className="font-bold text-slate-700 text-xs">Assignments</p>
-                <p className="text-[10px] text-slate-400 mt-1">Submit Tasks</p>
-              </button>
-              <button onClick={() => navigate('/student/grades')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
-                <Award size={18} className="text-indigo-600 mb-2" />
-                <p className="font-bold text-slate-700 text-xs">My Grades</p>
-                <p className="text-[10px] text-slate-400 mt-1">View Results</p>
-              </button>
-              <button onClick={() => navigate('/profile')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
-                <Users size={18} className="text-indigo-600 mb-2" />
-                <p className="font-bold text-slate-700 text-xs">Profile</p>
-                <p className="text-[10px] text-slate-400 mt-1">Manage Account</p>
-              </button>
-            </div>
-          </Card>
+      {/* Quick Actions */}
+      <Card variant="white" padding="lg" className="rounded-[2rem]">
+        <h3 className="font-black text-slate-800 mb-6">Quick Actions</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => navigate('/help')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
+            <MessageSquare size={18} className="text-indigo-600 mb-2" />
+            <p className="font-bold text-slate-700 text-xs">Help Center</p>
+            <p className="text-[10px] text-slate-400 mt-1">Contact Support</p>
+          </button>
+          <button onClick={() => navigate('/student/assignments')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
+            <Target size={18} className="text-indigo-600 mb-2" />
+            <p className="font-bold text-slate-700 text-xs">Assignments</p>
+            <p className="text-[10px] text-slate-400 mt-1">Submit Tasks</p>
+          </button>
+          <button onClick={() => navigate('/student/grades')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
+            <Award size={18} className="text-indigo-600 mb-2" />
+            <p className="font-bold text-slate-700 text-xs">My Grades</p>
+            <p className="text-[10px] text-slate-400 mt-1">View Results</p>
+          </button>
+          <button onClick={() => navigate('/profile')} className="p-4 bg-slate-50 rounded-2xl text-left hover:bg-indigo-50 transition-colors group">
+            <Users size={18} className="text-indigo-600 mb-2" />
+            <p className="font-bold text-slate-700 text-xs">Profile</p>
+            <p className="text-[10px] text-slate-400 mt-1">Manage Account</p>
+          </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

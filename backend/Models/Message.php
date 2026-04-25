@@ -12,6 +12,22 @@ class Message {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    public function sendGroupMessage($senderId, $classId, $content) {
+        $stmt = $this->db->prepare("INSERT INTO group_messages (sender_id, class_id, content) VALUES (:s, :c, :content)");
+        return $stmt->execute(['s' => $senderId, 'c' => $classId, 'content' => $content]);
+    }
+
+    public function getGroupMessages($classId) {
+        $sql = "SELECT gm.*, u.name as sender_name, u.role as sender_role 
+                FROM group_messages gm
+                JOIN users u ON u.id = gm.sender_id
+                WHERE gm.class_id = :cid
+                ORDER BY gm.created_at ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['cid' => $classId]);
+        return $stmt->fetchAll();
+    }
+
     public function sendMessage($senderId, $receiverId, $content) {
         $stmt = $this->db->prepare("INSERT INTO messages (sender_id, receiver_id, content) VALUES (:s, :r, :c)");
         return $stmt->execute(['s' => $senderId, 'r' => $receiverId, 'c' => $content]);

@@ -171,7 +171,12 @@ const Messaging = () => {
               {/* Messages Body */}
               <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6">
                 {messages.map((msg, idx) => (
-                  <MessageBubble key={msg.id} msg={msg} isMe={msg.sender_id === user.id} />
+                  <MessageBubble 
+                    key={msg.id} 
+                    msg={msg} 
+                    isMe={msg.sender_id === user.id} 
+                    isGroup={activeContact.is_group}
+                  />
                 ))}
                 <div ref={chatEndRef} />
               </div>
@@ -223,15 +228,16 @@ const ConversationItem = ({ conv, isActive, onClick }) => (
     onClick={onClick}
     className={`p-4 rounded-2xl cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'bg-indigo-50 shadow-sm' : 'hover:bg-slate-50'}`}
   >
-    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-black">
-      {conv.contact_name?.charAt(0)}
+    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black ${conv.is_group ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+      {conv.is_group ? <Users size={20} /> : conv.contact_name?.charAt(0)}
     </div>
     <div className="flex-1 min-w-0">
       <div className="flex justify-between items-start mb-0.5">
         <h4 className={`font-black text-sm truncate ${isActive ? 'text-indigo-900' : 'text-slate-800'}`}>{conv.contact_name}</h4>
-        <span className="text-[10px] text-slate-300 font-bold whitespace-nowrap">12:45 PM</span>
       </div>
-      <p className="text-xs text-slate-400 font-medium truncate">Tap to open conversation</p>
+      <p className="text-xs text-slate-400 font-medium truncate">
+        {conv.is_group ? 'Class Group Chat' : 'Private Message'}
+      </p>
     </div>
   </div>
 );
@@ -251,9 +257,14 @@ const ContactItem = ({ user, onClick }) => (
   </div>
 );
 
-const MessageBubble = ({ msg, isMe }) => (
+const MessageBubble = ({ msg, isMe, isGroup }) => (
   <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
     <div className={`max-w-[80%] md:max-w-[70%] space-y-1`}>
+      {isGroup && !isMe && (
+        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-2 mb-1">
+          {msg.sender_name} <span className="text-slate-300">• {msg.sender_role}</span>
+        </p>
+      )}
       <div className={`
         p-4 md:px-6 md:py-4 rounded-[1.8rem] text-sm font-medium leading-relaxed
         ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-700 shadow-sm rounded-tl-none border border-slate-50'}
@@ -262,7 +273,7 @@ const MessageBubble = ({ msg, isMe }) => (
       </div>
       <div className={`flex items-center gap-2 text-[10px] font-bold text-slate-300 ${isMe ? 'justify-end pr-2' : 'pl-2'}`}>
         <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        {isMe && (msg.is_read ? <CheckCheck size={12} className="text-indigo-400" /> : <Check size={12} />)}
+        {isMe && !isGroup && (msg.is_read ? <CheckCheck size={12} className="text-indigo-400" /> : <Check size={12} />)}
       </div>
     </div>
   </div>

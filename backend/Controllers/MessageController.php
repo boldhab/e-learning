@@ -38,6 +38,44 @@ class MessageController {
         if (!$user) return;
 
         $conversations = $this->messageModel->getConversations($user['id']);
+        
+        // Add Class Group if student or teacher assigned to a class
+        $groupChat = null;
+        if ($user['role'] === 'student') {
+            $student = $this->userModel->findById($user['id']);
+            if ($student['class_id']) {
+                $groupChat = [
+                    'contact_id' => 'group_' . $student['class_id'],
+                    'contact_name' => $student['class_name'] . ' (Group Chat)',
+                    'is_group' => true,
+                    'class_id' => $student['class_id']
+                ];
+            }
+        } else if ($user['role'] === 'teacher') {
+            // Teachers see groups for their assigned classes
+            $stmt = \Core\Database::getInstance()->getConnection()->prepare("
+                SELECT DISTINCT c.id, c.name 
+                FROM classes c
+                JOIN class_assignments ca ON ca.class_id = c.id
+                WHERE ca.teacher_id = :tid
+            ");
+            $stmt->execute(['tid' => $user['id']]);
+            $teacherClasses = $stmt->fetchAll();
+            
+            foreach ($teacherClasses as $cls) {
+                $conversations[] = [
+                    'contact_id' => 'group_' . $cls['id'],
+                    'contact_name' => $cls['name'] . ' (Group Chat)',
+                    'is_group' => true,
+                    'class_id' => $cls['id']
+                ];
+            }
+        }
+
+        if ($groupChat) {
+            array_unshift($conversations, $groupChat);
+        }
+
         echo json_encode(['status' => 'success', 'conversations' => $conversations]);
     }
 
@@ -46,12 +84,15 @@ class MessageController {
         if (!$user) return;
 
         $contactId = $_GET['contact_id'] ?? null;
-        if (!$contactId) {
-            http_response_code(400);
-            return;
-        }
+        if (!$contactId) return;
 
-        $messages = $this->messageModel->getMessages($user['id'], $contactId);
+        if (strpos($contactId, 'group_') === 0) {
+            $classId = substr($contactId, 6);
+            $messages = $this->messageModel->getGroupMessages($classId);
+        } else {
+            $messages = $this->messageModel->getMessages($user['id'], $contactId);
+        }
+        
         echo json_encode(['status' => 'success', 'messages' => $messages]);
     }
 
@@ -60,12 +101,16 @@ class MessageController {
         if (!$user) return;
 
         $data = json_decode(file_get_contents('php://input'), true);
-        if (empty($data['receiver_id']) || empty($data['content'])) {
-            http_response_code(400);
-            return;
+        $receiverId = $data['receiver_id'];
+        
+        if (strpos($receiverId, 'group_') === 0) {
+            $classId = substr($receiverId, 6);
+            $result = $this->messageModel->sendGroupMessage($user['id'], $classId, $data['content']);
+        } else {
+            $result = $this->messageModel->sendMessage($user['id'], $receiverId, $data['content']);
         }
 
-        if ($this->messageModel->sendMessage($user['id'], $data['receiver_id'], $data['content'])) {
+        if ($result) {
             echo json_encode(['status' => 'success']);
         } else {
             http_response_code(500);

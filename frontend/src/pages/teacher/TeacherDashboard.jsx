@@ -166,12 +166,12 @@ const TeacherDashboard = () => {
 
 const StatCard = ({ icon: Icon, label, value, color, bg, highlight }) => (
   <div className={`bg-white p-7 rounded-[2.5rem] border ${highlight ? 'border-amber-200 shadow-amber-100 shadow-xl' : 'border-slate-50 shadow-sm'} transition-all`}>
+     <div className="flex justify-between items-start mb-6">
+        <div className={`p-4 ${bg} ${color} rounded-2xl shadow-sm`}><Icon size={24} /></div>
      </div>
      <p className="text-slate-400 text-xs font-black uppercase tracking-widest">{label}</p>
      <p className="text-3xl font-black text-slate-900 mt-1">{value}</p>
   </div>
 );
-
-export default TeacherDashboard;
 
 export default TeacherDashboard;
