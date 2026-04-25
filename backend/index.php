@@ -142,6 +142,28 @@ switch ($resource) {
         echo json_encode(['message' => 'Courses route hit']);
         break;
 
+    case 'assignments':
+        $controller = new \Controllers\AssignmentController();
+        // Teacher routes
+        if ($id === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createAssignment();
+        } elseif ($id === 'my-assignments' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getMyAssignments();
+        } elseif ($id === 'submissions' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getSubmissions();
+        } elseif ($id === 'grade' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->gradeSubmission();
+        } elseif ($id === 'delete' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteAssignment();
+        }
+        // Student routes
+        elseif ($id === 'student' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getStudentAssignments();
+        } elseif ($id === 'submit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->submitAssignment();
+        }
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Resource not found: ' . $resource]);

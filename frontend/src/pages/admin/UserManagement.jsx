@@ -5,6 +5,7 @@ import {
   MoreHorizontal, 
   UserPlus, 
   Mail, 
+  KeyRound,
   ShieldCheck, 
   Ban, 
   Trash2, 
@@ -23,7 +24,14 @@ const UserManagement = () => {
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [resetPasswordData, setResetPasswordData] = useState({
+    password: '',
+    confirmPassword: ''
+  });
   const [newUserData, setNewUserData] = useState({
     name: '',
     email: '',
@@ -43,7 +51,7 @@ const UserManagement = () => {
       const data = await userService.getUsers(roleFilter === 'all' ? null : roleFilter);
       setUsers(data);
     } catch (error) {
-      console.error('Failed to load users');
+      setFeedback({ type: 'error', message: 'Failed to load users.' });
     } finally {
       setLoading(false);
     }
@@ -52,6 +60,7 @@ const UserManagement = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setFeedback({ type: '', message: '' });
     try {
       await userService.createUser(newUserData);
       setShowCreateModal(false);
@@ -63,9 +72,10 @@ const UserManagement = () => {
         grade: '',
         teaching_subject: ''
       });
+      setFeedback({ type: 'success', message: 'User created successfully.' });
       fetchUsers();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create user');
+      setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to create user' });
     } finally {
       setIsSubmitting(false);
     }
@@ -74,9 +84,10 @@ const UserManagement = () => {
   const handleUpdateStatus = async (userId, newStatus) => {
     try {
       await userService.updateStatus(userId, newStatus);
+      setFeedback({ type: 'success', message: `User status updated to ${newStatus}.` });
       fetchUsers();
     } catch (error) {
-      alert('Failed to update status');
+      setFeedback({ type: 'error', message: 'Failed to update status.' });
     }
   };
 
@@ -84,9 +95,46 @@ const UserManagement = () => {
     if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     try {
       await userService.deleteUser(userId);
+      setFeedback({ type: 'success', message: 'User deleted successfully.' });
       fetchUsers();
     } catch (error) {
-      alert('Failed to delete user');
+      setFeedback({ type: 'error', message: 'Failed to delete user.' });
+    }
+  };
+
+  const openResetModal = (user) => {
+    setSelectedUser(user);
+    setResetPasswordData({ password: '', confirmPassword: '' });
+    setShowResetModal(true);
+    setFeedback({ type: '', message: '' });
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    if (resetPasswordData.password.length < 6) {
+      setFeedback({ type: 'error', message: 'Password must be at least 6 characters.' });
+      return;
+    }
+
+    if (resetPasswordData.password !== resetPasswordData.confirmPassword) {
+      setFeedback({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFeedback({ type: '', message: '' });
+
+    try {
+      await userService.resetPassword(selectedUser.id, resetPasswordData.password);
+      setShowResetModal(false);
+      setSelectedUser(null);
+      setResetPasswordData({ password: '', confirmPassword: '' });
+      setFeedback({ type: 'success', message: 'Password reset successfully.' });
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to reset password.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -121,6 +169,17 @@ const UserManagement = () => {
           Create New User
         </button>
       </div>
+
+      {feedback.message && (
+        <div className={`flex items-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold ${
+          feedback.type === 'error'
+            ? 'bg-red-50 text-red-700 border border-red-100'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+        }`}>
+          {feedback.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+          <span>{feedback.message}</span>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
@@ -210,6 +269,13 @@ const UserManagement = () => {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                         <button
+                           onClick={() => openResetModal(user)}
+                           className="p-2.5 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-600 shadow-sm border border-slate-100 transition-all"
+                           title="Reset Password"
+                         >
+                            <KeyRound size={18} />
+                         </button>
                          <button 
                            onClick={() => handleUpdateStatus(user.id, user.status === 'suspended' ? 'active' : 'suspended')}
                            className={`p-2.5 rounded-xl shadow-sm border border-slate-100 transition-all ${
@@ -355,6 +421,77 @@ const UserManagement = () => {
                  </div>
               </form>
            </div>
+        </div>
+      )}
+
+      {showResetModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">Reset Password</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">
+                  Set a new password for {selectedUser.name}.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowResetModal(false);
+                  setSelectedUser(null);
+                }}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPassword} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                <input
+                  required
+                  type="password"
+                  className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                  placeholder="••••••••"
+                  value={resetPasswordData.password}
+                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                <input
+                  required
+                  type="password"
+                  className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                  placeholder="••••••••"
+                  value={resetPasswordData.confirmPassword}
+                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isSubmitting}
+                  type="submit"
+                  className="flex-1 py-4 px-10 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-2xl transition-all shadow-xl shadow-amber-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <KeyRound size={18} />}
+                  {isSubmitting ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

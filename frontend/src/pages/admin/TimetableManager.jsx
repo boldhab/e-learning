@@ -1,247 +1,314 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import adminService from '../../services/adminService';
+import {
+  Plus, Trash2, BookOpen, Layers, UserCheck,
+  CheckCircle2, Loader2, X, School, BookMarked, ArrowRight
+} from 'lucide-react';
 
-const TimetableManager = () => {
+const ClassSubjectManager = () => {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [forms, setForms] = useState({
-    className: '',
-    subjectName: '',
-    class_id: '',
-    subject_id: '',
-    teacher_id: '',
-  });
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null); // { msg, type }
 
-  const loadData = async () => {
+  // Form states
+  const [className, setClassName] = useState('');
+  const [subjectName, setSubjectName] = useState('');
+  const [assignForm, setAssignForm] = useState({ class_id: '', subject_id: '', teacher_id: '' });
+  const [submitting, setSubmitting] = useState('');
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const loadAll = async () => {
     setLoading(true);
-    setError('');
     try {
-      const [classesData, subjectsData, teachersData, assignmentsData] = await Promise.all([
+      const [cls, subs, tchs, asgns] = await Promise.all([
         adminService.getClasses(),
         adminService.getSubjects(),
         adminService.getUsers('teacher'),
         adminService.getAssignments(),
       ]);
-
-      setClasses(classesData);
-      setSubjects(subjectsData);
-      setTeachers(teachersData);
-      setAssignments(assignmentsData);
-    } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to load academic setup.');
+      setClasses(cls);
+      setSubjects(subs);
+      setTeachers(tchs);
+      setAssignments(asgns);
+    } catch {
+      showToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
-  const submitAction = async (callback, successMessage) => {
-    setMessage('');
-    setError('');
-
+  const handleCreateClass = async (e) => {
+    e.preventDefault();
+    if (!className.trim()) return;
+    setSubmitting('class');
     try {
-      await callback();
-      setMessage(successMessage);
-      await loadData();
+      await adminService.createClass(className.trim());
+      setClassName('');
+      showToast('Class created successfully');
+      await loadAll();
     } catch (err) {
-      setError(err?.response?.data?.details || err?.response?.data?.error || 'Action failed.');
+      showToast(err?.response?.data?.error || 'Failed to create class', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleCreateSubject = async (e) => {
+    e.preventDefault();
+    if (!subjectName.trim()) return;
+    setSubmitting('subject');
+    try {
+      await adminService.createSubject(subjectName.trim());
+      setSubjectName('');
+      showToast('Subject created successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to create subject', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleAssignTeacher = async (e) => {
+    e.preventDefault();
+    setSubmitting('assign');
+    try {
+      await adminService.assignTeacher({
+        class_id: Number(assignForm.class_id),
+        subject_id: Number(assignForm.subject_id),
+        teacher_id: Number(assignForm.teacher_id),
+      });
+      setAssignForm({ class_id: '', subject_id: '', teacher_id: '' });
+      showToast('Teacher assigned successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.details || err?.response?.data?.error || 'Assignment failed', 'error');
+    } finally {
+      setSubmitting('');
     }
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-10">
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900">Academic Setup</h1>
-        <p className="mt-1 text-slate-500">Create classes and subjects, then assign teachers to the correct class-subject combination.</p>
-      </div>
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10">
 
-      {(message || error) && (
-        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
-          {error || message}
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm animate-in slide-in-from-top-2 ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'
+        }`}>
+          {toast.type === 'error' ? <X size={18} /> : <CheckCircle2 size={18} />}
+          {toast.msg}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitAction(async () => {
-              await adminService.createClass(forms.className);
-              setForms((prev) => ({ ...prev, className: '' }));
-            }, 'Class created successfully.');
-          }}
-          className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-xl font-bold text-slate-900">Create Class</h2>
-          <input
-            value={forms.className}
-            onChange={(e) => setForms((prev) => ({ ...prev, className: e.target.value }))}
-            placeholder="Class name"
-            className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
-            required
-          />
-          <button type="submit" className="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-            Save class
-          </button>
-        </form>
+      {/* Header */}
+      <div>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Academic Setup</h1>
+        <p className="text-slate-500 mt-2 font-medium">Create classes, define subjects, and connect teachers to their designated sections.</p>
+      </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitAction(async () => {
-              await adminService.createSubject(forms.subjectName);
-              setForms((prev) => ({ ...prev, subjectName: '' }));
-            }, 'Subject created successfully.');
-          }}
-          className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-xl font-bold text-slate-900">Create Subject</h2>
-          <input
-            value={forms.subjectName}
-            onChange={(e) => setForms((prev) => ({ ...prev, subjectName: e.target.value }))}
-            placeholder="Subject name"
-            className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
-            required
-          />
-          <button type="submit" className="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">
-            Save subject
-          </button>
-        </form>
+      {/* 3 Action Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitAction(async () => {
-              await adminService.assignTeacher({
-                class_id: Number(forms.class_id),
-                subject_id: Number(forms.subject_id),
-                teacher_id: Number(forms.teacher_id),
-              });
-              setForms((prev) => ({ ...prev, class_id: '', subject_id: '', teacher_id: '' }));
-            }, 'Teacher assigned successfully.');
-          }}
-          className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-xl font-bold text-slate-900">Assign Teacher</h2>
-          <div className="mt-5 space-y-4">
-            <select
-              value={forms.class_id}
-              onChange={(e) => setForms((prev) => ({ ...prev, class_id: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
-              required
-            >
-              <option value="">Select class</option>
-              {classes.map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  {classItem.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={forms.subject_id}
-              onChange={(e) => setForms((prev) => ({ ...prev, subject_id: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
-              required
-            >
-              <option value="">Select subject</option>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={forms.teacher_id}
-              onChange={(e) => setForms((prev) => ({ ...prev, teacher_id: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
-              required
-            >
-              <option value="">Select teacher</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name} ({teacher.teaching_subject || 'No specialization'})
-                </option>
-              ))}
-            </select>
+        {/* Create Class */}
+        <form onSubmit={handleCreateClass} className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100 p-7 space-y-5 flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+              <School size={24} className="text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">New Class</h2>
+              <p className="text-xs text-slate-400 font-medium">e.g. "Grade 10A"</p>
+            </div>
           </div>
-          <button type="submit" className="mt-4 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
-            Assign teacher
+          <input
+            required
+            value={className}
+            onChange={(e) => setClassName(e.target.value)}
+            placeholder="Class name..."
+            className="w-full px-5 py-3.5 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:font-normal placeholder:text-slate-300"
+          />
+          <button
+            type="submit"
+            disabled={submitting === 'class'}
+            className="mt-auto w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {submitting === 'class' ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+            Create Class
+          </button>
+        </form>
+
+        {/* Create Subject */}
+        <form onSubmit={handleCreateSubject} className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100 p-7 space-y-5 flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
+              <BookMarked size={24} className="text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">New Subject</h2>
+              <p className="text-xs text-slate-400 font-medium">e.g. "Mathematics"</p>
+            </div>
+          </div>
+          <input
+            required
+            value={subjectName}
+            onChange={(e) => setSubjectName(e.target.value)}
+            placeholder="Subject name..."
+            className="w-full px-5 py-3.5 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:font-normal placeholder:text-slate-300"
+          />
+          <button
+            type="submit"
+            disabled={submitting === 'subject'}
+            className="mt-auto w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-amber-200 flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {submitting === 'subject' ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+            Create Subject
+          </button>
+        </form>
+
+        {/* Assign Teacher */}
+        <form onSubmit={handleAssignTeacher} className="bg-slate-900 rounded-[2rem] border border-slate-800 shadow-xl p-7 space-y-4 flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+              <UserCheck size={24} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">Assign Teacher</h2>
+              <p className="text-xs text-slate-400 font-medium">Link to class & subject</p>
+            </div>
+          </div>
+          <select
+            required
+            value={assignForm.class_id}
+            onChange={(e) => setAssignForm(p => ({ ...p, class_id: e.target.value }))}
+            className="w-full px-5 py-3 bg-white/10 text-white rounded-2xl outline-none font-bold focus:bg-white/20 transition-all appearance-none"
+          >
+            <option value="" className="text-slate-900">Select class…</option>
+            {classes.map(c => <option key={c.id} value={c.id} className="text-slate-900">{c.name}</option>)}
+          </select>
+          <select
+            required
+            value={assignForm.subject_id}
+            onChange={(e) => setAssignForm(p => ({ ...p, subject_id: e.target.value }))}
+            className="w-full px-5 py-3 bg-white/10 text-white rounded-2xl outline-none font-bold focus:bg-white/20 transition-all appearance-none"
+          >
+            <option value="" className="text-slate-900">Select subject…</option>
+            {subjects.map(s => <option key={s.id} value={s.id} className="text-slate-900">{s.name}</option>)}
+          </select>
+          <select
+            required
+            value={assignForm.teacher_id}
+            onChange={(e) => setAssignForm(p => ({ ...p, teacher_id: e.target.value }))}
+            className="w-full px-5 py-3 bg-white/10 text-white rounded-2xl outline-none font-bold focus:bg-white/20 transition-all appearance-none"
+          >
+            <option value="" className="text-slate-900">Select teacher…</option>
+            {teachers.map(t => <option key={t.id} value={t.id} className="text-slate-900">{t.name} ({t.teaching_subject || 'General'})</option>)}
+          </select>
+          <button
+            type="submit"
+            disabled={submitting === 'assign'}
+            className="mt-auto w-full py-3.5 bg-white text-slate-900 font-black rounded-2xl transition-all hover:bg-slate-100 flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {submitting === 'assign' ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+            Confirm Assignment
           </button>
         </form>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">Classes</h2>
-          <div className="mt-4 space-y-3">
+      {/* Lists Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* Classes List */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100 p-7">
+          <div className="flex items-center gap-3 mb-6">
+            <BookOpen size={20} className="text-indigo-600" />
+            <h3 className="text-xl font-black text-slate-900">Classes <span className="text-slate-300 font-normal">({classes.length})</span></h3>
+          </div>
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {loading ? (
-              <p className="text-sm text-slate-500">Loading classes...</p>
-            ) : (
-              classes.map((classItem) => (
-                <div key={classItem.id} className="rounded-2xl bg-slate-50 px-4 py-3 font-medium text-slate-700">
-                  {classItem.name}
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
+            ) : classes.length > 0 ? (
+              classes.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-5 py-3.5 bg-indigo-50/50 rounded-2xl group hover:bg-indigo-50 transition-colors">
+                  <span className="font-bold text-slate-800">{c.name}</span>
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">ID #{c.id}</span>
                 </div>
               ))
+            ) : (
+              <p className="text-center text-slate-400 py-8 text-sm font-medium">No classes yet. Create one above.</p>
             )}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">Subjects</h2>
-          <div className="mt-4 space-y-3">
+        {/* Subjects List */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100 p-7">
+          <div className="flex items-center gap-3 mb-6">
+            <Layers size={20} className="text-amber-500" />
+            <h3 className="text-xl font-black text-slate-900">Subjects <span className="text-slate-300 font-normal">({subjects.length})</span></h3>
+          </div>
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {loading ? (
-              <p className="text-sm text-slate-500">Loading subjects...</p>
-            ) : (
-              subjects.map((subject) => (
-                <div key={subject.id} className="rounded-2xl bg-slate-50 px-4 py-3 font-medium text-slate-700">
-                  {subject.name}
+              <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
+            ) : subjects.length > 0 ? (
+              subjects.map(s => (
+                <div key={s.id} className="flex items-center justify-between px-5 py-3.5 bg-amber-50/50 rounded-2xl group hover:bg-amber-50 transition-colors">
+                  <span className="font-bold text-slate-800">{s.name}</span>
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">ID #{s.id}</span>
                 </div>
               ))
+            ) : (
+              <p className="text-center text-slate-400 py-8 text-sm font-medium">No subjects yet. Create one above.</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900">Current Teacher Assignments</h2>
-        <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[700px]">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th className="px-4 py-3">Class</th>
-                <th className="px-4 py-3">Subject</th>
-                <th className="px-4 py-3">Teacher</th>
-                <th className="px-4 py-3">Year</th>
+      {/* Assignments Table */}
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-100 overflow-hidden">
+        <div className="p-7 border-b border-slate-50 flex items-center gap-3">
+          <UserCheck size={20} className="text-emerald-600" />
+          <h3 className="text-xl font-black text-slate-900">Current Teacher Assignments</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Class</th>
+                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Subject</th>
+                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Teacher</th>
+                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Year</th>
               </tr>
             </thead>
-            <tbody>
-              {assignments.map((assignment) => (
-                <tr key={assignment.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 text-slate-700">{assignment.class_name}</td>
-                  <td className="px-4 py-3 text-slate-700">{assignment.subject_name}</td>
-                  <td className="px-4 py-3 text-slate-700">{assignment.teacher_name}</td>
-                  <td className="px-4 py-3 text-slate-500">{assignment.academic_year_name}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr><td colSpan={4} className="px-7 py-12 text-center"><Loader2 className="animate-spin text-slate-200 mx-auto" size={32} /></td></tr>
+              ) : assignments.length > 0 ? (
+                assignments.map(a => (
+                  <tr key={a.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-7 py-4 font-bold text-slate-800">{a.class_name}</td>
+                    <td className="px-7 py-4 text-slate-600 font-medium">{a.subject_name}</td>
+                    <td className="px-7 py-4 text-slate-600 font-medium">{a.teacher_name}</td>
+                    <td className="px-7 py-4 text-slate-400 text-sm">{a.academic_year_name}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={4} className="px-7 py-12 text-center text-slate-400 font-medium text-sm">No teacher assignments yet.</td></tr>
+              )}
             </tbody>
           </table>
-          {!loading && assignments.length === 0 && (
-            <p className="pt-4 text-sm text-slate-500">No teacher assignments have been created yet.</p>
-          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default TimetableManager;
+export default ClassSubjectManager;
