@@ -1,423 +1,271 @@
-import { useState, useRef, useEffect } from 'react';
-import { studentMessagesData } from '../../services/mock/studentMockData';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MessageSquare, 
-  Search, 
-  SendHorizonal, 
-  Smile, 
-  Paperclip, 
-  MoreVertical,
-  Phone,
-  Video,
-  Info,
-  Check,
-  CheckCheck,
-  Image,
-  File,
-  Clock,
-  X,
-  ArrowLeft,
-  Reply,
-  Copy
+  Search, Send, User, MoreVertical, 
+  Phone, Video, Info, Plus, 
+  CheckCheck, Check, Clock,
+  MessageSquare, Loader2, ChevronLeft
 } from 'lucide-react';
-import { Card } from '../../components/common/Card';
-import { Button } from '../../components/common/Button';
+import { useAuth } from '../../context/AuthContext';
+import messageService from '../../services/messageService';
 
 const Messaging = () => {
-  const [selectedThread, setSelectedThread] = useState(studentMessagesData.threads[0]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [messages, setMessages] = useState(studentMessagesData.messages || [
-    {
-      id: 1,
-      text: "Please review the rubric before final submission.",
-      sender: "teacher",
-      time: "10:30 AM",
-      timestamp: "2024-12-17T10:30:00",
-      read: true,
-      delivered: true
-    },
-    {
-      id: 2,
-      text: "Got it, I will update the final section tonight.",
-      sender: "student",
-      time: "10:32 AM",
-      timestamp: "2024-12-17T10:32:00",
-      read: true,
-      delivered: true
-    },
-    {
-      id: 3,
-      text: "Great. Ping me if you need examples.",
-      sender: "teacher",
-      time: "10:35 AM",
-      timestamp: "2024-12-17T10:35:00",
-      read: true,
-      delivered: true
-    },
-    {
-      id: 4,
-      text: "Here's a sample project structure you can reference:",
-      sender: "teacher",
-      time: "10:36 AM",
-      timestamp: "2024-12-17T10:36:00",
-      read: true,
-      delivered: true,
-      attachment: {
-        type: "file",
-        name: "sample-project.zip",
-        size: "2.4 MB"
-      }
-    }
-  ]);
-  
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState([]);
+  const [activeContact, setActiveContact] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [showContacts, setShowContacts] = useState(false);
+  const chatEndRef = useRef(null);
 
-  // Auto-scroll to bottom of messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
-    
-    const newMsg = {
-      id: messages.length + 1,
-      text: newMessage,
-      sender: "student",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: new Date().toISOString(),
-      read: false,
-      delivered: true
+    const init = async () => {
+      try {
+        const [convs, availableContacts] = await Promise.all([
+          messageService.getConversations(),
+          messageService.getContacts()
+        ]);
+        setConversations(convs);
+        setContacts(availableContacts);
+      } catch (error) {
+        console.error("Messaging init error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    setMessages([...messages, newMsg]);
-    setNewMessage('');
-    
-    // Simulate teacher response after 2 seconds
-    setTimeout(() => {
-      const responseMsg = {
-        id: messages.length + 2,
-        text: "Thanks for your message! I'll review it shortly.",
-        sender: "teacher",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: new Date().toISOString(),
-        read: false,
-        delivered: true
-      };
-      setMessages(prev => [...prev, responseMsg]);
-    }, 2000);
-  };
+    init();
+  }, []);
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const fileMsg = {
-        id: messages.length + 1,
-        text: `Sent a file: ${file.name}`,
-        sender: "student",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: new Date().toISOString(),
-        read: false,
-        delivered: true,
-        attachment: {
-          type: file.type.startsWith('image/') ? 'image' : 'file',
-          name: file.name,
-          size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
+  useEffect(() => {
+    let interval;
+    if (activeContact) {
+      const fetchMessages = async () => {
+        try {
+          const data = await messageService.getMessages(activeContact.id || activeContact.contact_id);
+          setMessages(data);
+        } catch (error) {
+          console.error("Message fetch error:", error);
         }
       };
-      setMessages([...messages, fileMsg]);
+      fetchMessages();
+      interval = setInterval(fetchMessages, 3000); // Poll every 3s
+    }
+    return () => clearInterval(interval);
+  }, [activeContact]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeContact) return;
+
+    const cid = activeContact.id || activeContact.contact_id;
+    try {
+      await messageService.sendMessage(cid, newMessage);
+      setNewMessage('');
+      const data = await messageService.getMessages(cid);
+      setMessages(data);
+    } catch (error) {
+      console.error("Send error:", error);
     }
   };
 
-  const filteredThreads = studentMessagesData.threads.filter(thread =>
-    thread.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    thread.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const unreadCount = studentMessagesData.threads.reduce((total, thread) => total + (thread.unread || 0), 0);
-
-  const getMessageStatusIcon = (message) => {
-    if (message.read) return <CheckCheck size={14} className="text-emerald-500" />;
-    if (message.delivered) return <Check size={14} className="text-slate-400" />;
-    return <Clock size={14} className="text-slate-400" />;
-  };
+  if (loading) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className="text-slate-500 font-bold">Securely connecting to chat...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto h-[calc(100vh-80px)]">
+    <div className="p-4 md:p-6 lg:p-10 max-w-7xl mx-auto h-[calc(100vh-140px)] animate-in fade-in duration-500">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">Messages</h1>
-          <p className="text-slate-500 mt-1">Connect with teachers and classmates</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="primary" size="sm" leftIcon={<MessageSquare size={16} />}>
-            New Message
-          </Button>
-          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-semibold">
-            <MessageSquare size={16} />
-            {unreadCount} unread
-          </div>
-        </div>
-      </div>
-
-      {/* Main Messaging Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl h-full flex overflow-hidden">
         
-        {/* Conversations List */}
-        <Card variant="white" padding="none" className="overflow-hidden h-full flex flex-col">
-          <div className="p-4 border-b border-slate-100">
+        {/* Sidebar - Conversations */}
+        <div className={`w-full md:w-80 lg:w-96 border-r border-slate-50 flex flex-col ${activeContact ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-6 border-b border-slate-50">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Messages</h2>
+              <button 
+                onClick={() => setShowContacts(!showContacts)}
+                className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search conversations..." 
+                className="w-full bg-slate-50 border-none rounded-2xl py-3.5 pl-12 pr-4 text-sm font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-100 transition-all"
               />
             </div>
           </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            {filteredThreads.map((thread) => (
-              <button
-                key={thread.id}
-                onClick={() => setSelectedThread(thread)}
-                className={`
-                  w-full text-left p-4 border-b border-slate-50 transition-all hover:bg-slate-50
-                  ${selectedThread?.id === thread.id ? 'bg-indigo-50/50 border-l-4 border-l-indigo-500' : ''}
-                `}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                      {thread.avatar || thread.name.charAt(0)}
-                    </div>
-                    {thread.online && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-sm text-slate-800 truncate">{thread.name}</p>
-                      <span className="text-xs text-slate-400 flex-shrink-0">{thread.time}</span>
-                    </div>
-                    <p className="text-xs text-slate-500">{thread.role}</p>
-                    <p className="text-xs text-slate-600 mt-1 truncate">{thread.lastMessage}</p>
-                  </div>
-                  
-                  {thread.unread > 0 && (
-                    <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-white">{thread.unread}</span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </Card>
 
-        {/* Chat Area */}
-        <Card variant="white" padding="none" className="lg:col-span-2 h-full flex flex-col">
-          
-          {/* Chat Header */}
-          {selectedThread && (
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
-                  <ArrowLeft size={20} />
-                </button>
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                    {selectedThread.avatar || selectedThread.name.charAt(0)}
-                  </div>
-                  {selectedThread.online && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-bold text-slate-800">{selectedThread.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {selectedThread.online ? 'Online' : 'Offline'} • {selectedThread.role}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1">
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                  <Phone size={18} className="text-slate-600" />
-                </button>
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                  <Video size={18} className="text-slate-600" />
-                </button>
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                  <Info size={18} className="text-slate-600" />
-                </button>
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                  <MoreVertical size={18} className="text-slate-600" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-slate-50 to-white">
-            {messages.map((message, index) => {
-              const isTeacher = message.sender === 'teacher';
-              const showAvatar = index === 0 || messages[index - 1]?.sender !== message.sender;
-              
-              return (
-                <div key={message.id} className={`flex ${isTeacher ? 'justify-start' : 'justify-end'} group`}>
-                  <div className={`flex gap-2 max-w-[70%] ${isTeacher ? 'flex-row' : 'flex-row-reverse'}`}>
-                    {isTeacher && showAvatar && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {selectedThread?.name?.charAt(0) || 'T'}
-                      </div>
-                    )}
-                    
-                    <div>
-                      <div className={`relative rounded-2xl p-3 ${
-                        isTeacher 
-                          ? 'bg-white border border-slate-100 text-slate-700' 
-                          : 'bg-indigo-600 text-white'
-                      }`}>
-                        {/* Reply Indicator */}
-                        {message.replyTo && (
-                          <div className={`text-xs mb-1 pb-1 border-b ${isTeacher ? 'border-slate-200' : 'border-indigo-500'}`}>
-                            <span className="opacity-75">Replying to: {message.replyTo}</span>
-                          </div>
-                        )}
-                        
-                        {/* Message Text */}
-                        <p className="text-sm">{message.text}</p>
-                        
-                        {/* Attachment */}
-                        {message.attachment && (
-                          <div className={`mt-2 p-2 rounded-lg ${isTeacher ? 'bg-slate-50' : 'bg-indigo-500'}`}>
-                            <div className="flex items-center gap-2">
-                              {message.attachment.type === 'image' ? (
-                                <Image size={16} />
-                              ) : (
-                                <File size={16} />
-                              )}
-                              <span className="text-xs">{message.attachment.name}</span>
-                              <span className="text-xs opacity-75">({message.attachment.size})</span>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Message Actions (Hover) */}
-                        <div className={`absolute top-1/2 transform -translate-y-1/2 hidden group-hover:flex gap-1 ${
-                          isTeacher ? '-right-12' : '-left-12'
-                        }`}>
-                          <button className="p-1 bg-white rounded-full shadow-sm hover:bg-slate-50">
-                            <Reply size={12} className="text-slate-500" />
-                          </button>
-                          <button className="p-1 bg-white rounded-full shadow-sm hover:bg-slate-50">
-                            <Copy size={12} className="text-slate-500" />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className={`flex items-center gap-2 mt-1 text-xs ${isTeacher ? 'justify-start' : 'justify-end'}`}>
-                        <span className="text-slate-400">{message.time}</span>
-                        {!isTeacher && getMessageStatusIcon(message)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input Area */}
-          <div className="p-4 border-t border-slate-100">
-            {replyingTo && (
-              <div className="mb-3 p-2 bg-slate-50 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Reply size={14} className="text-slate-400" />
-                  <span className="text-xs text-slate-600">Replying to {replyingTo}</span>
-                </div>
-                <button onClick={() => setReplyingTo(null)}>
-                  <X size={14} className="text-slate-400" />
-                </button>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {showContacts ? (
+              <>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2">Available Contacts</p>
+                {contacts.map(contact => (
+                  <ContactItem 
+                    key={contact.id} 
+                    user={contact} 
+                    onClick={() => { setActiveContact(contact); setShowContacts(false); }} 
+                  />
+                ))}
+              </>
+            ) : (
+              conversations.map(conv => (
+                <ConversationItem 
+                  key={conv.contact_id} 
+                  conv={conv} 
+                  isActive={activeContact?.contact_id === conv.contact_id}
+                  onClick={() => setActiveContact(conv)} 
+                />
+              ))
+            )}
+            {!showContacts && conversations.length === 0 && (
+              <div className="text-center py-10 opacity-40">
+                <MessageSquare className="mx-auto mb-2" size={32} />
+                <p className="text-xs font-bold">No active chats</p>
               </div>
             )}
-            
-            <div className="flex items-end gap-2">
-              <div className="flex-1 relative">
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type a message..."
-                  rows={1}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  style={{ minHeight: '44px', maxHeight: '120px' }}
-                />
+          </div>
+        </div>
+
+        {/* Chat Area */}
+        <div className={`flex-1 flex flex-col bg-slate-50/30 ${!activeContact ? 'hidden md:flex' : 'flex'}`}>
+          {activeContact ? (
+            <>
+              {/* Chat Header */}
+              <div className="bg-white p-4 md:px-8 md:py-5 border-b border-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setActiveContact(null)} className="md:hidden p-2 text-slate-400 hover:text-slate-600">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-black">
+                      {activeContact.contact_name?.charAt(0) || activeContact.name?.charAt(0)}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 leading-tight">{activeContact.contact_name || activeContact.name}</h3>
+                    <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-0.5">Online Now</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 md:gap-4">
+                  <IconButton icon={Phone} />
+                  <IconButton icon={Video} />
+                  <IconButton icon={MoreVertical} />
+                </div>
               </div>
-              
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <Smile size={20} className="text-slate-500" />
-                </button>
-                
-                <button 
-                  onClick={() => fileInputRef.current.click()}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <Paperclip size={20} className="text-slate-500" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-                
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="p-2 rounded-lg"
-                  leftIcon={<SendHorizonal size={18} />}
-                >
-                  Send
-                </Button>
+
+              {/* Messages Body */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6">
+                {messages.map((msg, idx) => (
+                  <MessageBubble key={msg.id} msg={msg} isMe={msg.sender_id === user.id} />
+                ))}
+                <div ref={chatEndRef} />
               </div>
-            </div>
-            
-            {/* Typing Indicator */}
-            <div className="mt-2">
-              <p className="text-xs text-slate-400 flex items-center gap-1">
-                <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce"></div>
-                <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce delay-150"></div>
-                <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce delay-300"></div>
-                <span className="ml-1">Teacher is typing...</span>
+
+              {/* Input Area */}
+              <div className="p-6 md:p-8 bg-white border-t border-slate-50">
+                <form onSubmit={handleSend} className="flex items-center gap-4 bg-slate-50 rounded-3xl p-2 pr-3">
+                  <input 
+                    type="text" 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message here..." 
+                    className="flex-1 bg-transparent border-none py-3 px-4 text-sm font-bold placeholder:text-slate-400 focus:ring-0"
+                  />
+                  <button 
+                    type="submit"
+                    className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-100"
+                  >
+                    <Send size={18} />
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-4">
+              <div className="w-24 h-24 bg-white rounded-[2rem] shadow-xl flex items-center justify-center text-indigo-600 mb-4 animate-bounce duration-[3s]">
+                <MessageSquare size={40} />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900">Millennium Messenger</h2>
+              <p className="text-slate-400 font-medium max-w-sm">
+                Select a contact from the left or start a new conversation to begin chatting.
               </p>
             </div>
-          </div>
-        </Card>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
+const IconButton = ({ icon: Icon }) => (
+  <button className="w-10 h-10 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
+    <Icon size={18} />
+  </button>
+);
+
+const ConversationItem = ({ conv, isActive, onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`p-4 rounded-2xl cursor-pointer flex items-center gap-4 transition-all ${isActive ? 'bg-indigo-50 shadow-sm' : 'hover:bg-slate-50'}`}
+  >
+    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-black">
+      {conv.contact_name?.charAt(0)}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex justify-between items-start mb-0.5">
+        <h4 className={`font-black text-sm truncate ${isActive ? 'text-indigo-900' : 'text-slate-800'}`}>{conv.contact_name}</h4>
+        <span className="text-[10px] text-slate-300 font-bold whitespace-nowrap">12:45 PM</span>
+      </div>
+      <p className="text-xs text-slate-400 font-medium truncate">Tap to open conversation</p>
+    </div>
+  </div>
+);
+
+const ContactItem = ({ user, onClick }) => (
+  <div 
+    onClick={onClick}
+    className="p-4 rounded-2xl cursor-pointer flex items-center gap-4 hover:bg-indigo-50 transition-all group"
+  >
+    <div className="w-12 h-12 bg-indigo-50 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-black">
+      {user.name?.charAt(0)}
+    </div>
+    <div className="min-w-0">
+      <h4 className="font-black text-sm text-slate-800 truncate">{user.name}</h4>
+      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{user.role}</p>
+    </div>
+  </div>
+);
+
+const MessageBubble = ({ msg, isMe }) => (
+  <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+    <div className={`max-w-[80%] md:max-w-[70%] space-y-1`}>
+      <div className={`
+        p-4 md:px-6 md:py-4 rounded-[1.8rem] text-sm font-medium leading-relaxed
+        ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-700 shadow-sm rounded-tl-none border border-slate-50'}
+      `}>
+        {msg.content}
+      </div>
+      <div className={`flex items-center gap-2 text-[10px] font-bold text-slate-300 ${isMe ? 'justify-end pr-2' : 'pl-2'}`}>
+        <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {isMe && (msg.is_read ? <CheckCheck size={12} className="text-indigo-400" /> : <Check size={12} />)}
+      </div>
+    </div>
+  </div>
+);
 
 export default Messaging;

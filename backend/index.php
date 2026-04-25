@@ -158,6 +158,8 @@ switch ($resource) {
             $controller->getSubmissions();
         } elseif ($id === 'grade' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->gradeSubmission();
+        } elseif ($id === 'recent-submissions' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getRecentSubmissions();
         } elseif ($id === 'delete' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
             $controller->deleteAssignment();
         }
@@ -166,6 +168,21 @@ switch ($resource) {
             $controller->getStudentAssignments();
         } elseif ($id === 'submit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->submitAssignment();
+        }
+        break;
+    
+    case 'messages':
+        $controller = new \Controllers\MessageController();
+        if ($id === 'conversations' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getConversations();
+        } elseif ($id === 'chat' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getMessages();
+        } elseif ($id === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->sendMessage();
+        } elseif ($id === 'unread' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getUnreadCount();
+        } elseif ($id === 'contacts' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getContacts();
         }
         break;
 

@@ -209,6 +209,29 @@ class AssignmentController {
         }
     }
 
+    /**
+     * GET /api/assignments/recent-submissions
+     * Fetch the 10 most recent submissions across all teacher's assignments
+     */
+    public function getRecentSubmissions() {
+        $teacher = $this->auth('teacher');
+        if (!$teacher) return;
+
+        $sql = "SELECT ts.*, ta.title as assignment_title, u.name as student_name
+                FROM task_submissions ts
+                JOIN task_assignments ta ON ts.assignment_id = ta.id
+                JOIN users u ON ts.student_id = u.id
+                WHERE ta.teacher_id = :teacher_id
+                ORDER BY ts.submitted_at DESC
+                LIMIT 10";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['teacher_id' => $teacher['id']]);
+        $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['status' => 'success', 'submissions' => $submissions]);
+    }
+
     // ─── STUDENT ENDPOINTS ──────────────────────────────────────────
 
     /**

@@ -27,6 +27,11 @@ const assignmentService = {
     return response.data;
   },
 
+  getRecentSubmissions: async () => {
+    const response = await api.get('/assignments/recent-submissions');
+    return response.data.submissions || [];
+  },
+
   deleteAssignment: async (id) => {
     const response = await api.delete(`/assignments/delete?id=${id}`);
     return response.data;
