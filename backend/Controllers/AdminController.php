@@ -46,6 +46,81 @@ class AdminController {
     }
 
     /**
+     * Return admin dashboard data and supporting lists.
+     */
+    public function getOverview() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $counts = $this->userModel->getRoleCounts();
+        $years = $this->yearModel->getAll();
+        $activeYear = $this->yearModel->getActiveYear();
+        $users = $this->userModel->getAll();
+        $assignments = $this->assignmentModel->getAll();
+
+        echo json_encode([
+            'status' => 'success',
+            'stats' => [
+                'total_users' => (int)($counts['total_users'] ?? 0),
+                'total_students' => (int)($counts['total_students'] ?? 0),
+                'total_teachers' => (int)($counts['total_teachers'] ?? 0),
+                'total_admins' => (int)($counts['total_admins'] ?? 0),
+                'total_classes' => count($this->classModel->getAll()),
+                'total_subjects' => count($this->subjectModel->getAll()),
+                'total_assignments' => count($assignments),
+                'total_years' => count($years),
+            ],
+            'active_year' => $activeYear,
+            'recent_users' => array_slice($users, 0, 5),
+            'recent_assignments' => array_slice($assignments, 0, 5),
+        ]);
+    }
+
+    public function listUsers() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $role = $_GET['role'] ?? null;
+        echo json_encode([
+            'status' => 'success',
+            'users' => $this->userModel->getAll($role)
+        ]);
+    }
+
+    public function listYears() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'years' => $this->yearModel->getAll(),
+            'active_year' => $this->yearModel->getActiveYear()
+        ]);
+    }
+
+    public function listAssignments() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'assignments' => $this->assignmentModel->getAll()
+        ]);
+    }
+
+    /**
      * Create a new class
      */
     public function createClass() {
@@ -260,6 +335,142 @@ class AdminController {
             echo json_encode(['status' => 'success', 'message' => 'Academic year updated successfully']);
         } else {
             echo json_encode(['error' => 'Failed to update academic year']);
+        }
+    }
+
+    /**
+     * Get all users
+     */
+    public function getUsers() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $role = $_GET['role'] ?? null;
+        $users = $this->userModel->getAll($role);
+        echo json_encode(['status' => 'success', 'users' => $users]);
+    }
+
+    /**
+     * Create a new user (Admin-side)
+     */
+    public function createUser() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (empty($data['name']) || empty($data['email']) || empty($data['role']) || empty($data['password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing required fields']);
+            return;
+        }
+
+        // Check if email already exists
+        if ($this->userModel->findByEmail($data['email'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Email already registered']);
+            return;
+        }
+
+        $data['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        
+        $result = $this->userModel->create($data);
+        if ($result) {
+            echo json_encode(['status' => 'success', 'user_id' => $result]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create user']);
+        }
+    }
+
+    /**
+     * Update user status
+     */
+    public function updateUserStatus() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (empty($data['user_id']) || empty($data['status'])) {
+            http_response_code(400);
+            return;
+        }
+
+        if ($this->userModel->updateStatus($data['user_id'], $data['status'])) {
+            echo json_encode(['status' => 'success']);
+        } else {
+            http_response_code(500);
+        }
+    }
+
+    /**
+     * Reset a user's password
+     */
+    public function resetUserPassword() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (empty($data['user_id']) || empty($data['password'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User ID and new password are required']);
+            return;
+        }
+
+        if (strlen($data['password']) < 6) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must be at least 6 characters']);
+            return;
+        }
+
+        $user = $this->userModel->findById($data['user_id']);
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'User not found']);
+            return;
+        }
+
+        $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
+        if ($this->userModel->updatePassword($data['user_id'], $passwordHash)) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Password reset successfully'
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to reset password']);
+        }
+    }
+
+    /**
+     * Delete a user
+     */
+    public function deleteUser() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            return;
+        }
+
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            http_response_code(400);
+            return;
+        }
+
+        if ($this->userModel->delete($id)) {
+            echo json_encode(['status' => 'success']);
+        } else {
+            http_response_code(500);
         }
     }
 }

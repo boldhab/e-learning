@@ -92,8 +92,8 @@ export const Sidebar = ({ isOpen, setOpen }) => {
           items: [
             ...dashboard,
             { to: '/admin/users', icon: Users, label: 'Users' },
-            { to: '/admin/courses', icon: BookOpen, label: 'System Courses' },
-            { to: '/admin/settings', icon: Settings, label: 'System Settings' },
+            { to: '/admin/courses', icon: BookOpen, label: 'Academic Setup' },
+            { to: '/admin/settings', icon: Settings, label: 'Academic Years' },
           ],
         },
       ];

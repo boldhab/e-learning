@@ -49,4 +49,21 @@ class Assignment {
         ]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Get all class assignments with class, subject, teacher, and year context.
+     */
+    public function getAll() {
+        $sql = "SELECT ca.id, ca.class_id, ca.subject_id, ca.teacher_id, ca.academic_year_id, ca.created_at,
+                       c.name AS class_name, s.name AS subject_name, u.name AS teacher_name, ay.name AS academic_year_name
+                FROM " . $this->table . " ca
+                JOIN classes c ON ca.class_id = c.id
+                JOIN subjects s ON ca.subject_id = s.id
+                JOIN users u ON ca.teacher_id = u.id
+                JOIN academic_years ay ON ca.academic_year_id = ay.id
+                ORDER BY ca.created_at DESC";
+
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
+    }
 }

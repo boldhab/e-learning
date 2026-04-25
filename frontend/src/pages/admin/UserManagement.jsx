@@ -1,61 +1,146 @@
-import React, { useState } from 'react';
-import { mockUsers } from '../../services/mock/mockData';
-import { Search, Filter, MoreHorizontal, UserPlus, Mail, ShieldCheck, Ban } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Search, 
+  Filter, 
+  MoreHorizontal, 
+  UserPlus, 
+  Mail, 
+  ShieldCheck, 
+  Ban, 
+  Trash2, 
+  Loader2,
+  X,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
+import userService from '../../services/userService';
 
 const UserManagement = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-
-  const filteredUsers = mockUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+  
+  // Modal states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    role: 'student',
+    password: '',
+    grade: '',
+    teaching_subject: ''
   });
+
+  useEffect(() => {
+    fetchUsers();
+  }, [roleFilter]);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await userService.getUsers(roleFilter === 'all' ? null : roleFilter);
+      setUsers(data);
+    } catch (error) {
+      console.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await userService.createUser(newUserData);
+      setShowCreateModal(false);
+      setNewUserData({
+        name: '',
+        email: '',
+        role: 'student',
+        password: '',
+        grade: '',
+        teaching_subject: ''
+      });
+      fetchUsers();
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to create user');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateStatus = async (userId, newStatus) => {
+    try {
+      await userService.updateStatus(userId, newStatus);
+      fetchUsers();
+    } catch (error) {
+      alert('Failed to update status');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    try {
+      await userService.deleteUser(userId);
+      fetchUsers();
+    } catch (error) {
+      alert('Failed to delete user');
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'bg-emerald-50 text-emerald-600 ring-emerald-100';
       case 'suspended': return 'bg-red-50 text-red-600 ring-red-100';
       case 'inactive': return 'bg-slate-100 text-slate-500 ring-slate-200';
-      default: return 'bg-slate-100 text-slate-500';
+      default: return 'bg-slate-100 text-slate-500 ring-slate-200';
     }
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">User Management</h1>
-          <p className="text-slate-500 mt-1">Total {mockUsers.length} registered accounts across the platform.</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">User Management</h1>
+          <p className="text-slate-500 mt-1 font-medium">Manage and monitor all platform accounts from a single interface.</p>
         </div>
-        <button className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 w-max shadow-lg shadow-primary-100">
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 px-8 rounded-2xl transition-all flex items-center gap-2 w-max shadow-xl shadow-primary-200 active:scale-95"
+        >
           <UserPlus size={20} />
-          Invite User
+          Create New User
         </button>
       </div>
 
-      {/* Filters and Actions */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      {/* Filters and Search */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors" size={20} />
           <input 
             type="text" 
             placeholder="Search by name or email..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary-500 transition-all text-sm outline-none"
+            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all text-sm outline-none font-medium"
           />
         </div>
         
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-3 w-full md:w-auto">
           <Filter size={18} className="text-slate-400 hidden md:block" />
           <select 
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="flex-1 md:w-40 bg-slate-50 border-none rounded-xl py-3 px-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+            className="flex-1 md:w-48 bg-slate-50 border-transparent rounded-2xl py-3.5 px-5 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all appearance-none cursor-pointer"
           >
             <option value="all">All Roles</option>
             <option value="student">Students</option>
@@ -66,85 +151,212 @@ const UserManagement = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">User Details</th>
-                <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Role</th>
-                <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Joined Date</th>
-                <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Identity</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Access Level</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Joined Date</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-sm">
-              {filteredUsers.map(user => (
-                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs">
-                        {user.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800">{user.name}</p>
-                        <p className="text-xs text-slate-400">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest border ${
-                      user.role === 'admin' ? 'border-primary-200 text-primary-600 bg-primary-50' : 
-                      user.role === 'teacher' ? 'border-indigo-200 text-indigo-600 bg-indigo-50' : 
-                      'border-slate-200 text-slate-500 bg-slate-50'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ring-1 ${getStatusColor(user.status)}`}>
-                      {user.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-slate-500 font-medium">
-                    {user.joined}
-                  </td>
-                  <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-primary-600 shadow-sm border border-transparent hover:border-slate-100">
-                          <Mail size={16} />
-                       </button>
-                       <button className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-emerald-600 shadow-sm border border-transparent hover:border-slate-100">
-                          <ShieldCheck size={16} />
-                       </button>
-                       <button className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-red-600 shadow-sm border border-transparent hover:border-slate-100">
-                          <Ban size={16} />
-                       </button>
-                       <button className="p-2 hover:bg-white rounded-lg text-slate-400 shadow-sm border border-transparent hover:border-slate-100 ml-2">
-                          <MoreHorizontal size={16} />
-                       </button>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="animate-spin text-primary-600" size={40} />
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing user database...</p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map(user => (
+                  <tr key={user.id} className="hover:bg-slate-50/80 transition-all group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm transition-transform group-hover:scale-110 ${
+                          user.role === 'admin' ? 'bg-primary-100 text-primary-700' :
+                          user.role === 'teacher' ? 'bg-indigo-100 text-indigo-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {user.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-slate-800 text-base">{user.name}</p>
+                          <p className="text-xs text-slate-400 font-medium">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-colors ${
+                        user.role === 'admin' ? 'border-primary-100 text-primary-600 bg-primary-50' : 
+                        user.role === 'teacher' ? 'border-indigo-100 text-indigo-600 bg-indigo-50' : 
+                        'border-slate-100 text-slate-500 bg-slate-50'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ring-1 ${getStatusColor(user.status || 'active')}`}>
+                        {(user.status || 'ACTIVE').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-slate-500 font-bold">
+                      {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                         <button 
+                           onClick={() => handleUpdateStatus(user.id, user.status === 'suspended' ? 'active' : 'suspended')}
+                           className={`p-2.5 rounded-xl shadow-sm border border-slate-100 transition-all ${
+                             user.status === 'suspended' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                           }`}
+                           title={user.status === 'suspended' ? 'Activate' : 'Suspend'}
+                         >
+                            {user.status === 'suspended' ? <ShieldCheck size={18} /> : <Ban size={18} />}
+                         </button>
+                         <button 
+                           onClick={() => handleDeleteUser(user.id)}
+                           className="p-2.5 bg-white hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-600 shadow-sm border border-slate-100 transition-all"
+                           title="Delete User"
+                         >
+                            <Trash2 size={18} />
+                         </button>
+                         <button className="p-2.5 bg-white hover:bg-slate-50 rounded-xl text-slate-400 shadow-sm border border-slate-100 transition-all ml-2">
+                            <MoreHorizontal size={18} />
+                         </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-8 py-20 text-center">
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">No matching users found</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        
-        {filteredUsers.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-slate-400 font-medium">No users found matching your search.</p>
-          </div>
-        )}
+      </div>
 
-        <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-400">
-           <span>Showing {filteredUsers.length} of {mockUsers.length} users</span>
-           <div className="flex gap-2">
-              <button className="px-3 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50">Previous</button>
-              <button className="px-3 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50">Next</button>
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                 <div>
+                    <h2 className="text-2xl font-black text-slate-900">Create New User</h2>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Register a new student, teacher, or administrator.</p>
+                 </div>
+                 <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+                    <X size={24} />
+                 </button>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="p-8 space-y-6">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                       <input 
+                         required
+                         type="text" 
+                         className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                         placeholder="John Doe"
+                         value={newUserData.name}
+                         onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+                       />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Role</label>
+                       <select 
+                         className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700 appearance-none cursor-pointer"
+                         value={newUserData.role}
+                         onChange={(e) => setNewUserData({...newUserData, role: e.target.value})}
+                       >
+                          <option value="student">Student</option>
+                          <option value="teacher">Teacher</option>
+                          <option value="admin">Administrator</option>
+                       </select>
+                    </div>
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                    <input 
+                      required
+                      type="email" 
+                      className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                      placeholder="john@school.com"
+                      value={newUserData.email}
+                      onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+                    />
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Initial Password</label>
+                    <input 
+                      required
+                      type="password" 
+                      className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                      placeholder="••••••••"
+                      value={newUserData.password}
+                      onChange={(e) => setNewUserData({...newUserData, password: e.target.value})}
+                    />
+                 </div>
+
+                 {newUserData.role === 'student' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
+                       <input 
+                         type="text" 
+                         className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                         placeholder="e.g. Grade 10"
+                         value={newUserData.grade}
+                         onChange={(e) => setNewUserData({...newUserData, grade: e.target.value})}
+                       />
+                    </div>
+                 )}
+
+                 {newUserData.role === 'teacher' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teaching Subject</label>
+                       <input 
+                         type="text" 
+                         className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
+                         placeholder="e.g. Mathematics"
+                         value={newUserData.teaching_subject}
+                         onChange={(e) => setNewUserData({...newUserData, teaching_subject: e.target.value})}
+                       />
+                    </div>
+                 )}
+
+                 <div className="flex gap-4 pt-4">
+                    <button 
+                      type="button"
+                      onClick={() => setShowCreateModal(false)}
+                      className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors"
+                    >
+                       Discard
+                    </button>
+                    <button 
+                      disabled={isSubmitting}
+                      type="submit"
+                      className="flex-2 py-4 px-10 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-2xl transition-all shadow-xl shadow-primary-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                       {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+                       {isSubmitting ? 'Creating...' : 'Finalize Registration'}
+                    </button>
+                 </div>
+              </form>
            </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

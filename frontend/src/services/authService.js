@@ -1,53 +1,23 @@
+import api from './api';
 import storage from '../utils/localStorage';
-import { mockUsers } from './mock/mockData';
 
 const USER_KEY = 'user';
 
-const resolveRole = (email = '') => {
-  const normalizedEmail = email.trim().toLowerCase();
-  const existingUser = mockUsers.find(
-    (candidate) => candidate.email.toLowerCase() === normalizedEmail
-  );
-
-  if (existingUser?.role) return existingUser.role;
-  if (normalizedEmail.includes('admin')) return 'admin';
-  if (normalizedEmail.includes('teacher')) return 'teacher';
-  return 'student';
-};
-
 export const authService = {
   login: async ({ email, password }) => {
-    if (!email || !password) {
-      throw new Error('Email and password are required');
-    }
-
-    const user = {
-      id: Date.now(),
-      name: email.split('@')[0],
-      email,
-      role: resolveRole(email),
-      token: 'mock-token',
+    const response = await api.post('/auth/login', { email, password });
+    const payload = {
+      ...response.data.user,
+      token: response.data.token,
     };
 
-    storage.set(USER_KEY, user);
-    return user;
+    storage.set(USER_KEY, payload);
+    return payload;
   },
 
-  register: async ({ name, email, password, role = 'student' }) => {
-    if (!name || !email || !password) {
-      throw new Error('Name, email, and password are required');
-    }
-
-    const user = {
-      id: Date.now(),
-      name,
-      email,
-      role,
-      token: 'mock-token',
-    };
-
-    storage.set(USER_KEY, user);
-    return user;
+  register: async (userData) => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
   },
 
   logout: async () => {

@@ -1,144 +1,129 @@
-import React from 'react';
-import { mockStats } from '../../services/mock/mockData';
-import { Shield, Users, BookOpen, Activity, TrendingUp, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Activity, BookOpen, CalendarRange, Shield, Users } from 'lucide-react';
+import adminService from '../../services/adminService';
 
-const AdminStat = ({ icon: Icon, label, value, subtext, color }) => (
-  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
-    <div className="flex justify-between items-start">
-      <div className={`p-3 rounded-2xl ${color}`}>
-        <Icon size={24} />
+const StatCard = ({ label, value, icon: Icon, color }) => (
+  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="flex items-center justify-between">
+      <div className={`rounded-2xl p-3 ${color}`}>
+        <Icon size={22} />
       </div>
-      <button className="text-slate-400 hover:text-slate-600">
-        <Activity size={16} />
-      </button>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
     </div>
-    <div className="mt-4">
-      <p className="text-slate-500 text-sm font-medium">{label}</p>
-      <div className="flex items-baseline gap-2">
-        <h4 className="text-3xl font-bold text-slate-800">{value}</h4>
-        <span className="text-emerald-500 text-xs font-bold">+4.5%</span>
-      </div>
-      <p className="text-xs text-slate-400 mt-1">{subtext}</p>
-    </div>
+    <p className="mt-5 text-3xl font-bold text-slate-900">{value}</p>
   </div>
 );
 
 const AdminDashboard = () => {
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadOverview = async () => {
+      try {
+        const data = await adminService.getOverview();
+        setOverview(data);
+      } catch (err) {
+        setError(err?.response?.data?.error || 'Failed to load admin dashboard data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOverview();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-sm text-slate-500">Loading admin dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8 text-sm text-red-600">{error}</div>;
+  }
+
+  const stats = overview?.stats || {};
+
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10">
-      
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-8 p-6 md:p-10">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">System Command Center</h1>
-          <p className="text-slate-500">Global overview of The Millennium School E-Learning ecosystem.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900">Admin Dashboard</h1>
+          <p className="mt-1 text-slate-500">
+            Manage users, classes, subjects, and the active academic year from one place.
+          </p>
         </div>
-        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-xs font-bold ring-1 ring-emerald-100">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          SYSTEM ONLINE
+        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
+          Active Year: {overview?.active_year?.name || 'Not set'}
         </div>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AdminStat 
-          icon={Users} 
-          label="Total Students" 
-          value={mockStats.activeStudents} 
-          subtext="Across all grade levels"
-          color="bg-blue-50 text-blue-600"
-        />
-        <AdminStat 
-          icon={Shield} 
-          label="Active Teachers" 
-          value={mockStats.activeTeachers} 
-          subtext="Verified instructors"
-          color="bg-purple-50 text-purple-600"
-        />
-        <AdminStat 
-          icon={TrendingUp} 
-          label="Global Revenue" 
-          value={mockStats.monthlyRevenue} 
-          subtext="Current month total"
-          color="bg-emerald-50 text-emerald-600"
-        />
-        <AdminStat 
-          icon={Activity} 
-          label="System Uptime" 
-          value={mockStats.systemUptime} 
-          subtext="Last 30 days"
-          color="bg-orange-50 text-orange-600"
-        />
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Students" value={stats.total_students || 0} icon={Users} color="bg-blue-50 text-blue-600" />
+        <StatCard label="Teachers" value={stats.total_teachers || 0} icon={Shield} color="bg-violet-50 text-violet-600" />
+        <StatCard label="Classes" value={stats.total_classes || 0} icon={BookOpen} color="bg-amber-50 text-amber-600" />
+        <StatCard label="Assignments" value={stats.total_assignments || 0} icon={Activity} color="bg-emerald-50 text-emerald-600" />
       </div>
 
-      {/* Middle Section: Trends and Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Mock Analytics Chart */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
-           <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold text-slate-800">Enrollment Trends</h3>
-              <select className="bg-slate-50 border-none rounded-lg text-sm font-semibold p-2 outline-none">
-                 <option>Last 7 Days</option>
-                 <option>Last 30 Days</option>
-              </select>
-           </div>
-           
-           <div className="h-64 flex items-end justify-between gap-2">
-              {[40, 60, 45, 90, 65, 80, 70].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                   <div 
-                    className="w-full bg-primary-100 rounded-t-lg group-hover:bg-primary-500 transition-all duration-300 relative"
-                    style={{ height: `${h}%` }}
-                   >
-                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                        {h * 5}
-                     </div>
-                   </div>
-                   <span className="text-[10px] font-bold text-slate-400 uppercase">Day {i+1}</span>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900">Recent Users</h2>
+            <Link to="/admin/users" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
+              Open user management
+            </Link>
+          </div>
+          <div className="space-y-4">
+            {(overview?.recent_users || []).map((user) => (
+              <div key={user.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="font-semibold text-slate-800">{user.name}</p>
+                  <p className="text-sm text-slate-500">{user.email}</p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {user.role}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <CalendarRange size={20} className="text-indigo-600" />
+              <h2 className="text-lg font-bold text-slate-900">Academic Years</h2>
+            </div>
+            <p className="mt-3 text-sm text-slate-500">
+              {stats.total_years || 0} academic year records are available.
+            </p>
+            <Link
+              to="/admin/settings"
+              className="mt-5 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Manage years
+            </Link>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Latest Teacher Assignments</h2>
+            <div className="mt-4 space-y-3">
+              {(overview?.recent_assignments || []).map((assignment) => (
+                <div key={assignment.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="font-semibold text-slate-800">{assignment.class_name}</p>
+                  <p className="text-sm text-slate-500">
+                    {assignment.subject_name} with {assignment.teacher_name}
+                  </p>
                 </div>
               ))}
-           </div>
-        </div>
-
-        {/* System Health */}
-        <div className="space-y-6">
-           <div className="bg-slate-900 rounded-3xl p-8 text-white">
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                 <Shield size={20} className="text-primary-400" />
-                 Secured Services
-              </h3>
-              <div className="space-y-4">
-                 {[
-                   { name: 'Auth Server', status: 'Healthy' },
-                   { name: 'Database API', status: 'Healthy' },
-                   { name: 'CDN Nodes', status: 'Warning' },
-                 ].map(service => (
-                   <div key={service.name} className="flex items-center justify-between p-3 glass-dark rounded-xl">
-                      <span className="text-sm font-medium">{service.name}</span>
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
-                        service.status === 'Healthy' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'
-                      }`}>
-                        {service.status.toUpperCase()}
-                      </span>
-                   </div>
-                 ))}
-              </div>
-           </div>
-
-           <div className="bg-primary-50 border border-primary-100 rounded-3xl p-8">
-              <div className="flex items-center gap-3 text-primary-700 mb-4">
-                 <AlertCircle size={20} />
-                 <h4 className="font-bold uppercase tracking-widest text-xs">Admin Tasks</h4>
-              </div>
-              <p className="text-sm text-primary-600 mb-4">There are 5 teacher verification requests pending approval.</p>
-              <button className="w-full py-3 bg-primary-600 text-white rounded-xl text-xs font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
-                 Review Requests
-              </button>
-           </div>
+              {(!overview?.recent_assignments || overview.recent_assignments.length === 0) && (
+                <p className="text-sm text-slate-500">No assignments have been created yet.</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
   );
 };

@@ -60,28 +60,58 @@ switch ($resource) {
 
     case 'classes':
         $controller = new \Controllers\AdminController();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            echo json_encode([
+                'status' => 'success',
+                'classes' => (new \Models\ClassModel())->getAll()
+            ]);
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createClass();
         }
         break;
 
     case 'subjects':
         $controller = new \Controllers\AdminController();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            echo json_encode([
+                'status' => 'success',
+                'subjects' => (new \Models\Subject())->getAll()
+            ]);
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createSubject();
         }
         break;
 
     case 'admin':
         $controller = new \Controllers\AdminController();
-        if ($id === 'assign' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($id === 'overview' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getOverview();
+        } elseif ($id === 'users' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->listUsers();
+        } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->listYears();
+        } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createYear();
+        } elseif ($id === 'assignments' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->listAssignments();
+        } elseif ($id === 'assign' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->assignTeacher();
         } elseif ($id === 'assign-student' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->assignStudentToClass();
-        } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-            $controller->createYear();
         } elseif ($id === 'active-year' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->setActiveYear();
+        } elseif ($id === 'reset-password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->resetUserPassword();
+        } elseif ($id === 'users') {
+            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+                $controller->getUsers();
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $controller->createUser();
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+                $controller->updateUserStatus();
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+                $controller->deleteUser();
+            }
         }
         break;
 

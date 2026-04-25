@@ -51,24 +51,22 @@ const Login = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(async () => {
-      try {
-        await login(email, password);
-        
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }
-        
-        navigate(from, { replace: true });
-      } catch (err) {
-        setError('Invalid email or password. Please try again.');
-        setIsLoading(false);
+
+    try {
+      await login(email, password);
+
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
       }
-    }, 800);
+
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const stats = [

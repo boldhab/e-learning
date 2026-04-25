@@ -91,25 +91,11 @@ const Register = () => {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
+
     setTimeout(() => {
-      // Mock registration logic
-      const userData = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: formData.fullName,
-        email: formData.email,
-        role: formData.role,
-        registeredAt: new Date().toISOString()
-      };
-      
-      localStorage.setItem('elearning_user', JSON.stringify(userData));
-      setSuccess('Account created successfully! Redirecting...');
-      
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
-    }, 1500);
+      setIsLoading(false);
+      setError('Self-registration is currently disabled. Please contact an administrator to create your account.');
+    }, 600);
   };
 
   const benefits = [
