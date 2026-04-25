@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ClipboardList,
+  GraduationCap,
 } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, label, active, isOpen, badge }) => (
@@ -92,7 +94,7 @@ export const Sidebar = ({ isOpen, setOpen }) => {
           items: [
             ...dashboard,
             { to: '/admin/users', icon: Users, label: 'Users' },
-            { to: '/admin/courses', icon: BookOpen, label: 'Academic Setup' },
+            { to: '/admin/courses', icon: GraduationCap, label: 'Classes & Subjects' },
             { to: '/admin/settings', icon: Settings, label: 'Academic Years' },
           ],
         },
@@ -106,7 +108,8 @@ export const Sidebar = ({ isOpen, setOpen }) => {
           items: [
             ...dashboard,
             { to: '/teacher/courses', icon: BookOpen, label: 'My Courses' },
-            { to: '/teacher/grading', icon: BarChart3, label: 'Grading', badge: '8' },
+            { to: '/teacher/assignments', icon: ClipboardList, label: 'Assignments' },
+            { to: '/teacher/grading', icon: BarChart3, label: 'Grading' },
             { to: '/teacher/forum', icon: MessageSquare, label: 'Messages', badge: '3' },
           ],
         },

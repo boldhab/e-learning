@@ -82,4 +82,34 @@ CREATE TABLE IF NOT EXISTS courses (
     FOREIGN KEY (academic_year_id) REFERENCES academic_years(id) ON DELETE SET NULL
 );
 
--- 8. Lessons, Assignments, Submissions (Omitted for brevity, but exist in system)
+-- 8. Task Assignments (Teacher-created homework tasks)
+CREATE TABLE IF NOT EXISTS task_assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT NOT NULL,
+    teacher_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    instructions TEXT,
+    due_date DATETIME NOT NULL,
+    points INT DEFAULT 100,
+    attachment_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 9. Task Submissions (Student document submissions)
+CREATE TABLE IF NOT EXISTS task_submissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    student_id INT NOT NULL,
+    file_url VARCHAR(255),
+    notes TEXT,
+    status ENUM('submitted','graded','late') DEFAULT 'submitted',
+    grade INT,
+    feedback TEXT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    graded_at TIMESTAMP NULL,
+    FOREIGN KEY (assignment_id) REFERENCES task_assignments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_submission (assignment_id, student_id)
+);

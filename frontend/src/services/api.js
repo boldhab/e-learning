@@ -2,7 +2,7 @@ import axios from 'axios';
 import storage from '../utils/localStorage';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost/E-learning/backend/index.php/api',
   headers: {
     'Content-Type': 'application/json',
   },

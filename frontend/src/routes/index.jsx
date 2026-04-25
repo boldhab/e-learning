@@ -22,6 +22,7 @@ import Messaging from '../pages/student/Messaging';
 import MyGrades from '../pages/student/MyGrades';
 import MyLearning from '../pages/student/MyLearning';
 import CourseContentEditor from '../pages/teacher/CourseContentEditor';
+import TeacherAssignments from '../pages/teacher/AssignmentCreate';
 import ForumManage from '../pages/teacher/ForumManage';
 import GradingView from '../pages/teacher/GradingView';
 import TeacherDashboard from '../pages/teacher/TeacherDashboard';
@@ -90,6 +91,14 @@ export const AppRoutes = () => (
         element={
           <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
             <TeacherDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="teacher/assignments"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
+            <TeacherAssignments />
           </ProtectedRoute>
         }
       />
