@@ -165,6 +165,9 @@ const CourseViewer = () => {
                         <div>
                           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Section {idx + 1}</p>
                           <p className="text-xs font-bold text-slate-500">Official Lecture Notes</p>
+                          {note.author_name && (
+                            <p className="text-[12px] text-slate-400 font-medium mt-1">Published by {note.author_name}</p>
+                          )}
                         </div>
                       </div>
                       <div 

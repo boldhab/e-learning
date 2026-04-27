@@ -12,7 +12,8 @@ import {
   Save,
   Trash2,
   ExternalLink,
-  Loader2
+  Loader2,
+  Cloud
 } from 'lucide-react';
 import contentService from '../../services/contentService';
 
@@ -21,6 +22,7 @@ const CourseContentEditor = () => {
   const navigate = useNavigate();
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [publishLoading, setPublishLoading] = useState(false);
   const [activeChapterId, setActiveChapterId] = useState(null);
   
   // State for adding content
@@ -36,6 +38,7 @@ const CourseContentEditor = () => {
   const [materialFile, setMaterialFile] = useState(null);
   const [materialUrl, setMaterialUrl] = useState('');
   const [materialError, setMaterialError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchCourseContent();
@@ -98,6 +101,7 @@ const CourseContentEditor = () => {
 
     try {
       setMaterialError('');
+      setIsUploading(true);
       const materialData = {
         type: materialType,
         file: materialFile,
@@ -112,8 +116,26 @@ const CourseContentEditor = () => {
       setShowAddMaterial(false);
       fetchCourseContent();
     } catch (error) {
-      const message = error?.response?.data?.error || 'Failed to add resource';
+      const message = error?.response?.data?.error || 'Failed to add resource. Please check your Cloudinary settings.';
       setMaterialError(message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePublishAll = async () => {
+    if (!window.confirm('Publish all course content?')) return;
+    try {
+      setPublishLoading(true);
+      await contentService.publishCourseContent(courseId);
+      alert('Course content published successfully');
+      fetchCourseContent();
+    } catch (error) {
+      console.error('Publish failed:', error);
+      const msg = error?.response?.data?.error || 'Failed to publish course content.';
+      alert(msg);
+    } finally {
+      setPublishLoading(false);
     }
   };
 
@@ -143,15 +165,19 @@ const CourseContentEditor = () => {
             <p className="text-xs text-slate-500 font-medium">Course ID: {courseId}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(`/teacher/course/${courseId}/preview`)}
             className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
           >
             Preview as Student
           </button>
-          <button className="px-4 py-2 text-sm font-bold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors shadow-sm shadow-primary-200">
-            Publish All
+          <button
+            onClick={handlePublishAll}
+            disabled={publishLoading}
+            className="px-4 py-2 text-sm font-bold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors shadow-sm shadow-primary-200 disabled:opacity-60"
+          >
+            {publishLoading ? 'Publishing…' : 'Publish All'}
           </button>
         </div>
       </div>
@@ -368,21 +394,27 @@ const CourseContentEditor = () => {
                        )}
 
                        <div className="flex justify-end gap-3 mt-6">
-                         <button
-                           onClick={() => {
-                             setShowAddMaterial(false);
-                             setMaterialError('');
-                           }}
-                           className="px-4 py-2 text-sm font-bold text-slate-500"
-                         >
-                           Cancel
-                         </button>
-                         <button 
-                           onClick={handleAddMaterial}
-                           className="px-6 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all"
-                         >
-                           Add Resource
-                         </button>
+                          <button
+                            onClick={() => {
+                              setShowAddMaterial(false);
+                              setMaterialError('');
+                            }}
+                            disabled={isUploading}
+                            className="px-4 py-2 text-sm font-bold text-slate-500 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            onClick={handleAddMaterial}
+                            disabled={isUploading}
+                            className="px-6 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isUploading ? (
+                              <><Loader2 size={16} className="animate-spin" /> Uploading to Cloud...</>
+                            ) : (
+                              <><Cloud size={16} /> Add Resource</>
+                            )}
+                          </button>
                        </div>
                     </div>
                   </div>

@@ -26,12 +26,18 @@ class ChapterNote {
     }
 
     public function getByChapter($chapterId, $onlyPublished = true) {
-        $sql = "SELECT * FROM " . $this->table . " WHERE chapter_id = :chapter_id";
+        // Join with users to include author/teacher details so students can see who authored/published notes
+        $sql = "SELECT cn.*, u.id as author_id, u.name as author_name
+                FROM " . $this->table . " cn
+                LEFT JOIN users u ON u.id = cn.created_by
+                WHERE cn.chapter_id = :chapter_id";
+
         if ($onlyPublished) {
-            $sql .= " AND is_published = 1";
+            $sql .= " AND cn.is_published = 1";
         }
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['chapter_id' => $chapterId]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

@@ -5,6 +5,30 @@
  * Master Entry Point & Router
  */
 
+// Load .env file into environment
+$envFile = __DIR__ . '/.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0) continue;
+        if (strpos($line, '=') === false) continue;
+        
+        [$key, $value] = explode('=', $line, 2);
+        $key   = trim($key);
+        $value = trim($value);
+        
+        // Strip surrounding quotes
+        if (preg_match('/^(["\'])(.*)\1$/', $value, $m)) {
+            $value = $m[2];
+        }
+        
+        putenv("$key=$value");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
+
 // Debug log
 file_put_contents(__DIR__ . '/request.log', date('[Y-m-d H:i:s] ') . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . "\n", FILE_APPEND);
 
@@ -149,6 +173,8 @@ switch ($resource) {
             $controller->addNote();
         } elseif ($id === 'materials' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->addMaterial();
+        } elseif ($id === 'publish-content' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->publishCourseContent();
         }
         break;
 

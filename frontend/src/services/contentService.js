@@ -57,17 +57,14 @@ export const contentService = {
       
       if (type === 'learning' && file) {
         const formData = new FormData();
-        formData.append('chapter_id', chapterId);
+        formData.append('chapter_id', String(chapterId));
         formData.append('title', title);
         formData.append('type', 'learning');
         formData.append('file', file);
         formData.append('description', description || '');
 
-        const response = await api.post('/teacher/materials', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        // Do not manually set multipart Content-Type; Axios/browser must set boundary.
+        const response = await api.post('/teacher/materials', formData);
         return response.data;
       }
 
@@ -85,6 +82,21 @@ export const contentService = {
       throw new Error('A file is required for learning materials.');
     } catch (error) {
       console.error('Error adding material:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Publish all content for a course
+   */
+  publishCourseContent: async (courseId) => {
+    try {
+      const response = await api.post('/teacher/publish-content', {
+        course_id: courseId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error publishing content:', error);
       throw error;
     }
   }

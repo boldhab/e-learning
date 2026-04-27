@@ -10,12 +10,12 @@ class Database {
     private $connection;
 
     private function __construct() {
-        // Load configuration (typically from a config file or .env)
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '3306';
-        $db   = getenv('DB_NAME') ?: 'elearning';
-        $user = getenv('DB_USER') ?: 'root';
-        $pass = getenv('DB_PASS') ?: '';
+        // Load configuration from .env via Config
+        $host = \Config\Config::get('DB_HOST', '127.0.0.1');
+        $port = \Config\Config::get('DB_PORT', '3306');
+        $db   = \Config\Config::get('DB_NAME', 'elearning');
+        $user = \Config\Config::get('DB_USER', 'root');
+        $pass = \Config\Config::get('DB_PASS', '');
         $charset = 'utf8mb4';
 
         // XAMPP use MySQL/MariaDB

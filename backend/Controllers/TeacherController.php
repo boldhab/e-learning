@@ -7,6 +7,7 @@ use Models\ChapterNote;
 use Models\Material;
 use Models\AcademicYear; // Optional for year-based access
 use Utils\FileUploader;
+use Utils\CloudinaryUploader;
 use Core\Database;
 use Core\JwtHandler;
 use PDO;
@@ -199,14 +200,14 @@ class TeacherController {
         }
 
         if ($type === 'learning') {
-            $fileUrl = $data['file_url'] ?? '';
+            $fileUrl  = $data['file_url'] ?? '';
             $fileType = $data['file_type'] ?? '';
 
-            // HANDLE FILE UPLOAD IF PRESENT
+            // HANDLE FILE UPLOAD IF PRESENT — uploads to Cloudinary
             if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-                // Folder structure: course_{id}/chapter_{id}
-                $subFolder = "course_" . $chapter['course_id'] . "/chapter_" . $chapter['id'];
-                $uploadResult = FileUploader::upload($_FILES['file'], $subFolder);
+                // Cloudinary folder structure: elearning/course_{id}/chapter_{id}
+                $folder = 'elearning/course_' . $chapter['course_id'] . '/chapter_' . $chapter['id'];
+                $uploadResult = FileUploader::upload($_FILES['file'], $folder);
 
                 if (is_array($uploadResult) && isset($uploadResult['error'])) {
                     http_response_code(400);
@@ -214,11 +215,19 @@ class TeacherController {
                     return;
                 }
 
+                // $uploadResult is now a full Cloudinary https:// URL
                 $fileUrl = $uploadResult;
+
                 // Automatically set file type if not provided
                 if (empty($fileType)) {
                     $fileType = strtoupper(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
                 }
+            }
+
+            if (empty($fileUrl)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'A file is required for learning materials.']);
+                return;
             }
 
             $result = $this->materialModel->createLearning(
@@ -229,11 +238,18 @@ class TeacherController {
                 $data['description'] ?? ''
             );
         } else {
+            $referenceUrl = $data['url_or_link'] ?? ($data['file_url'] ?? '');
+            if (empty($referenceUrl)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'A URL or file link is required for reference materials.']);
+                return;
+            }
+
             $result = $this->materialModel->createReference(
                 $data['chapter_id'], 
                 $data['title'], 
                 $data['source_type'] ?? 'link', 
-                $data['url_or_link'] ?? ($data['file_url'] ?? '')
+                $referenceUrl
             );
         }
 
@@ -247,5 +263,43 @@ class TeacherController {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to add material']);
         }
+    }
+
+    /**
+     * Publish all notes for a teacher-owned course.
+     */
+    public function publishCourseContent() {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (empty($data['course_id'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Course ID is required']);
+            return;
+        }
+
+        $teacher = $this->verifyTeacher($data['course_id']);
+        if (!$teacher) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: You are not the instructor of this course']);
+            return;
+        }
+
+        $stmt = $this->db->prepare(
+            "UPDATE chapter_notes cn
+             JOIN chapters ch ON ch.id = cn.chapter_id
+             SET cn.is_published = 1
+             WHERE ch.course_id = :course_id AND cn.created_by = :teacher_id"
+        );
+
+        $stmt->execute([
+            'course_id' => $data['course_id'],
+            'teacher_id' => $teacher['id']
+        ]);
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Course content published successfully',
+            'updated_notes' => $stmt->rowCount()
+        ]);
     }
 }

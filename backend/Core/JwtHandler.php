@@ -8,7 +8,7 @@ class JwtHandler {
     private static $secret;
 
     private static function init() {
-        self::$secret = Config::$JWT_SECRET;
+        self::$secret = Config::jwtSecret();
     }
 
     /**
@@ -23,7 +23,7 @@ class JwtHandler {
         
         // Add standard claims
         $payload['iat'] = time();
-        $payload['exp'] = time() + Config::$TOKEN_EXPIRY;
+        $payload['exp'] = time() + Config::tokenExpiry();
         
         $base64UrlHeader = self::base64UrlEncode($header);
         $base64UrlPayload = self::base64UrlEncode(json_encode($payload));

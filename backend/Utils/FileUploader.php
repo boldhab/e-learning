@@ -6,10 +6,12 @@ use Config\Config;
 
 class FileUploader {
     /**
-     * Upload a file and return the saved path relative to Uploads folder
-     * @param array $file The element from $_FILES
-     * @param string $subFolder Optional subfolder (e.g. course_1)
-     * @return string|array The file path on success, or an array with 'error' message
+     * Upload a file to Cloudinary and return the secure URL.
+     * Falls back to local storage if Cloudinary is not configured.
+     *
+     * @param array  $file      The element from $_FILES
+     * @param string $subFolder Optional Cloudinary folder (e.g. "course_1/chapter_2")
+     * @return string|array  The Cloudinary secure_url on success, or ['error' => '...'] on failure
      */
     public static function upload($file, $subFolder = '') {
         // 1. Basic checks
@@ -18,33 +20,60 @@ class FileUploader {
         }
 
         // 2. Validate Size
-        if ($file['size'] > Config::$MAX_FILE_SIZE) {
+        if ($file['size'] > Config::maxFileSize()) {
             return ['error' => 'File is too large. Max limit is 50MB.'];
         }
 
         // 3. Validate Extension
-        $filename = $file['name'];
+        $filename  = $file['name'];
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-        if (!in_array($extension, Config::$ALLOWED_EXTENSIONS)) {
-            return ['error' => 'Unsupported file type. Allowed: ' . implode(', ', Config::$ALLOWED_EXTENSIONS)];
+        if (!in_array($extension, Config::allowedExtensions())) {
+            return ['error' => 'Unsupported file type. Allowed: ' . implode(', ', Config::allowedExtensions())];
         }
 
-        // 4. Prepare Destination
-        $uploadBase = Config::$UPLOAD_PATH;
+        // 4. Build a clean unique public_id for Cloudinary
+        $safeBaseName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($filename, PATHINFO_FILENAME));
+        $publicId     = ($subFolder ? trim($subFolder, '/') . '/' : '') . uniqid() . '_' . $safeBaseName;
+
+        // 5. Upload to Cloudinary
+        $cloudName = Config::get('CLOUDINARY_CLOUD_NAME');
+        if ($cloudName) {
+            // Determine the Cloudinary folder (separate from public_id prefix)
+            $folder = $subFolder ? trim($subFolder, '/') : '';
+            $result = CloudinaryUploader::upload($file['tmp_name'], $folder);
+
+            if (isset($result['error'])) {
+                // If Cloudinary is misconfigured (cloud/region), gracefully fall back to local storage.
+                $errorMessage = strtolower((string) $result['error']);
+                $isCloudConfigError =
+                    strpos($errorMessage, 'invalid cloudinary cloud name') !== false ||
+                    strpos($errorMessage, 'invalid cloud_name') !== false ||
+                    strpos($errorMessage, 'region endpoint') !== false;
+
+                if (!$isCloudConfigError) {
+                    return $result; // propagate non-configuration errors (e.g., signature/auth)
+                }
+            }
+
+            // Return the full Cloudinary secure URL
+            if (isset($result['secure_url'])) {
+                return $result['secure_url'];
+            }
+        }
+
+        // 6. Fallback: Save locally (original behaviour)
+        $uploadBase   = Config::uploadPath();
         $targetFolder = $uploadBase . ($subFolder ? trim($subFolder, '/') . '/' : '');
 
         if (!is_dir($targetFolder)) {
             mkdir($targetFolder, 0777, true);
         }
 
-        // Generate unique name to prevent collisions
-        $safeName = uniqid() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", $filename);
+        $safeName   = uniqid() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", $filename);
         $targetPath = $targetFolder . $safeName;
 
-        // 5. Move file
         if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-            // Return relative path for database storage
             return ($subFolder ? trim($subFolder, '/') . '/' : '') . $safeName;
         }
 
