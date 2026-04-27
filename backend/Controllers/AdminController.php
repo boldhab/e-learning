@@ -9,6 +9,7 @@ use Models\User;
 use Models\AcademicYear;
 use Models\Course;
 use Core\JwtHandler;
+use Core\Database;
 
 class AdminController {
     private $classModel;
@@ -17,6 +18,7 @@ class AdminController {
     private $userModel;
     private $yearModel;
     private $courseModel;
+    private $db;
 
     public function __construct() {
         $this->classModel = new ClassModel();
@@ -25,6 +27,7 @@ class AdminController {
         $this->userModel = new User();
         $this->yearModel = new AcademicYear();
         $this->courseModel = new Course();
+        $this->db = Database::getInstance()->getConnection();
     }
 
     /**
@@ -140,10 +143,71 @@ class AdminController {
             return;
         }
 
-        $result = $this->classModel->create($data['name']);
-        if ($result) {
-            echo json_encode(['status' => 'success', 'class_id' => $result]);
-        } else {
+        if (empty($data['student_ids']) || !is_array($data['student_ids'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'At least one student must be assigned when creating a class']);
+            return;
+        }
+
+        $studentIds = array_values(array_unique(array_filter(array_map('intval', $data['student_ids']))));
+        if (count($studentIds) === 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'At least one valid student must be assigned when creating a class']);
+            return;
+        }
+
+        $activeYear = $this->yearModel->getActiveYear();
+        if (!$activeYear) {
+            http_response_code(500);
+            echo json_encode(['error' => 'No active academic year found. Please create one first.']);
+            return;
+        }
+
+        foreach ($studentIds as $studentId) {
+            $student = $this->userModel->findById($studentId);
+            if (!$student || $student['role'] !== 'student') {
+                http_response_code(400);
+                echo json_encode(['error' => "Invalid student ID provided: {$studentId}"]);
+                return;
+            }
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $classId = $this->classModel->create($data['name']);
+            if (!$classId) {
+                $this->db->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to create class. Name might already exist.']);
+                return;
+            }
+
+            foreach ($studentIds as $studentId) {
+                $enrolled = $this->userModel->enrollInYear($studentId, $classId, $activeYear['id']);
+                $assigned = $this->userModel->assignToClass($studentId, $classId);
+
+                if (!$enrolled || !$assigned) {
+                    $this->db->rollBack();
+                    http_response_code(500);
+                    echo json_encode(['error' => 'Failed to assign one or more students to the new class']);
+                    return;
+                }
+            }
+
+            $this->db->commit();
+
+            echo json_encode([
+                'status' => 'success',
+                'class_id' => $classId,
+                'assigned_students' => count($studentIds),
+                'message' => 'Class created and students assigned successfully'
+            ]);
+        } catch (\PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create class. Name might already exist.']);
         }

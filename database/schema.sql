@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('admin', 'teacher', 'student') NOT NULL,
     profile_image VARCHAR(255),
     grade VARCHAR(50) DEFAULT NULL,
+    student_identifier VARCHAR(50) DEFAULT NULL UNIQUE,
     teaching_subject VARCHAR(255) DEFAULT NULL,
     class_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

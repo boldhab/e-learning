@@ -23,8 +23,8 @@ const adminService = {
     return response.data.classes || [];
   },
 
-  createClass: async (name) => {
-    const response = await api.post('/classes', { name });
+  createClass: async (payload) => {
+    const response = await api.post('/classes', payload);
     return response.data;
   },
 

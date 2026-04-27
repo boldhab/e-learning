@@ -62,7 +62,7 @@ const UserManagement = () => {
     setIsSubmitting(true);
     setFeedback({ type: '', message: '' });
     try {
-      await userService.createUser(newUserData);
+      const response = await userService.createUser(newUserData);
       setShowCreateModal(false);
       setNewUserData({
         name: '',
@@ -72,7 +72,10 @@ const UserManagement = () => {
         grade: '',
         teaching_subject: ''
       });
-      setFeedback({ type: 'success', message: 'User created successfully.' });
+      const successMessage = response?.student_identifier
+        ? `User created successfully. Student ID: ${response.student_identifier}`
+        : 'User created successfully.';
+      setFeedback({ type: 'success', message: successMessage });
       fetchUsers();
     } catch (error) {
       setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to create user' });
@@ -379,13 +382,17 @@ const UserManagement = () => {
                  {newUserData.role === 'student' && (
                     <div className="space-y-2 animate-in slide-in-from-top-2">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
-                       <input 
-                         type="text" 
+                       <select
                          className="w-full px-5 py-3.5 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary-500/10 transition-all outline-none font-bold text-slate-700"
-                         placeholder="e.g. Grade 10"
                          value={newUserData.grade}
                          onChange={(e) => setNewUserData({...newUserData, grade: e.target.value})}
-                       />
+                       >
+                         <option value="">Select grade</option>
+                         <option value="Grade 9">Grade 9</option>
+                         <option value="Grade 10">Grade 10</option>
+                         <option value="Grade 11">Grade 11</option>
+                         <option value="Grade 12">Grade 12</option>
+                       </select>
                     </div>
                  )}
 

@@ -9,15 +9,18 @@ const ClassSubjectManager = () => {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null); // { msg, type }
 
   // Form states
   const [className, setClassName] = useState('');
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [subjectName, setSubjectName] = useState('');
   const [assignForm, setAssignForm] = useState({ class_id: '', subject_id: '', teacher_id: '' });
   const [submitting, setSubmitting] = useState('');
+  const availableStudents = students.filter((student) => !student.class_id);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -27,15 +30,17 @@ const ClassSubjectManager = () => {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [cls, subs, tchs, asgns] = await Promise.all([
+      const [cls, subs, tchs, stds, asgns] = await Promise.all([
         adminService.getClasses(),
         adminService.getSubjects(),
         adminService.getUsers('teacher'),
+        adminService.getUsers('student'),
         adminService.getAssignments(),
       ]);
       setClasses(cls);
       setSubjects(subs);
       setTeachers(tchs);
+      setStudents(stds);
       setAssignments(asgns);
     } catch {
       showToast('Failed to load data', 'error');
@@ -49,17 +54,33 @@ const ClassSubjectManager = () => {
   const handleCreateClass = async (e) => {
     e.preventDefault();
     if (!className.trim()) return;
+    if (selectedStudentIds.length === 0) {
+      showToast('Select at least one student for the new class', 'error');
+      return;
+    }
     setSubmitting('class');
     try {
-      await adminService.createClass(className.trim());
+      await adminService.createClass({
+        name: className.trim(),
+        student_ids: selectedStudentIds,
+      });
       setClassName('');
-      showToast('Class created successfully');
+      setSelectedStudentIds([]);
+      showToast('Class created and students assigned successfully');
       await loadAll();
     } catch (err) {
       showToast(err?.response?.data?.error || 'Failed to create class', 'error');
     } finally {
       setSubmitting('');
     }
+  };
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudentIds((current) =>
+      current.includes(studentId)
+        ? current.filter((id) => id !== studentId)
+        : [...current, studentId]
+    );
   };
 
   const handleCreateSubject = async (e) => {
@@ -113,7 +134,7 @@ const ClassSubjectManager = () => {
       {/* Header */}
       <div>
         <h1 className="text-4xl font-black text-slate-900 tracking-tight">Academic Setup</h1>
-        <p className="text-slate-500 mt-2 font-medium">Create classes, define subjects, and connect teachers to their designated sections.</p>
+        <p className="text-slate-500 mt-2 font-medium">Create classes with students already assigned, define subjects, and connect teachers to their designated sections.</p>
       </div>
 
       {/* 3 Action Cards */}
@@ -137,9 +158,47 @@ const ClassSubjectManager = () => {
             placeholder="Class name..."
             className="w-full px-5 py-3.5 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:font-normal placeholder:text-slate-300"
           />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign Students</p>
+              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                {selectedStudentIds.length} selected
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto rounded-2xl bg-slate-50 p-3 space-y-2">
+              {availableStudents.length > 0 ? (
+                availableStudents.map((student) => {
+                  const checked = selectedStudentIds.includes(student.id);
+                  return (
+                    <label
+                      key={student.id}
+                      className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-3 cursor-pointer transition-all ${
+                        checked ? 'bg-indigo-50 border border-indigo-100' : 'bg-white border border-transparent'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{student.name}</p>
+                        <p className="text-xs text-slate-400 truncate">{student.email}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleStudentSelection(student.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </label>
+                  );
+                })
+              ) : (
+                <p className="px-3 py-6 text-sm text-slate-400 text-center font-medium">
+                  No unassigned students available. Create a student account or remove a student from another class first.
+                </p>
+              )}
+            </div>
+          </div>
           <button
             type="submit"
-            disabled={submitting === 'class'}
+            disabled={submitting === 'class' || availableStudents.length === 0}
             className="mt-auto w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {submitting === 'class' ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}

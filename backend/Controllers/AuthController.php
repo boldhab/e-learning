@@ -107,6 +107,12 @@ class AuthController {
             return;
         }
 
+        if ($data['role'] === 'student' && !preg_match('/^(Grade\s*)?(9|10|11|12)$/i', trim((string) $grade))) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Student grade must be Grade 9, Grade 10, Grade 11, or Grade 12']);
+            return;
+        }
+
         if ($data['role'] === 'teacher' && empty($teachingSubject)) {
             http_response_code(400);
             echo json_encode(['error' => 'Teaching subject is required for teachers']);
@@ -126,10 +132,12 @@ class AuthController {
         $newUserId = $this->userModel->create($userData);
 
         if ($newUserId) {
+            $createdUser = $this->userModel->findById($newUserId);
             echo json_encode([
                 'status' => 'success',
                 'message' => 'User registered successfully',
-                'user_id' => $newUserId
+                'user_id' => $newUserId,
+                'student_identifier' => $createdUser['student_identifier'] ?? null
             ]);
         } else {
             http_response_code(500);

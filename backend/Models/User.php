@@ -13,6 +13,45 @@ class User {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    private function normalizeGrade($grade) {
+        if ($grade === null || $grade === '') {
+            return null;
+        }
+
+        if (preg_match('/(9|10|11|12)/', (string) $grade, $matches)) {
+            return 'Grade ' . $matches[1];
+        }
+
+        return null;
+    }
+
+    private function buildStudentIdentifier($user) {
+        if (($user['role'] ?? null) !== 'student') {
+            return null;
+        }
+
+        $normalizedGrade = $this->normalizeGrade($user['grade'] ?? null);
+        if (!$normalizedGrade || empty($user['id'])) {
+            return null;
+        }
+
+        $gradeNumber = preg_replace('/\D+/', '', $normalizedGrade);
+        return sprintf('STU-G%s-%04d', $gradeNumber, (int) $user['id']);
+    }
+
+    private function appendDerivedFields($user) {
+        if (!$user) {
+            return $user;
+        }
+
+        if (($user['role'] ?? null) === 'student') {
+            $user['grade'] = $this->normalizeGrade($user['grade'] ?? null) ?? $user['grade'];
+            $user['student_identifier'] = $user['student_identifier'] ?? $this->buildStudentIdentifier($user);
+        }
+
+        return $user;
+    }
+
     /**
      * Find a user by their email address
      * @param string $email
@@ -24,7 +63,7 @@ class User {
         $stmt->bindParam(':email', $email);
         $stmt->execute();
         
-        return $stmt->fetch();
+        return $this->appendDerivedFields($stmt->fetch());
     }
 
     /**
@@ -33,7 +72,7 @@ class User {
      * @return array|false
      */
     public function findById($id) {
-        $sql = "SELECT u.id, u.name, u.email, u.role, u.profile_image, u.grade, u.teaching_subject, u.class_id, c.name as class_name, u.created_at 
+        $sql = "SELECT u.id, u.name, u.email, u.role, u.profile_image, u.grade, u.student_identifier, u.teaching_subject, u.class_id, c.name as class_name, u.created_at 
                 FROM " . $this->table . " u
                 LEFT JOIN classes c ON u.class_id = c.id
                 WHERE u.id = :id LIMIT 1";
@@ -41,7 +80,7 @@ class User {
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         
-        return $stmt->fetch();
+        return $this->appendDerivedFields($stmt->fetch());
     }
 
     /**
@@ -50,21 +89,42 @@ class User {
      * @return bool|int New user ID or false
      */
     public function create($data) {
-        $sql = "INSERT INTO " . $this->table . " (name, email, password_hash, role, grade, teaching_subject, class_id) 
-                VALUES (:name, :email, :password_hash, :role, :grade, :teaching_subject, :class_id)";
+        $normalizedGrade = $this->normalizeGrade($data['grade'] ?? null);
+        $sql = "INSERT INTO " . $this->table . " (name, email, password_hash, role, grade, student_identifier, teaching_subject, class_id) 
+                VALUES (:name, :email, :password_hash, :role, :grade, :student_identifier, :teaching_subject, :class_id)";
         
         $stmt = $this->db->prepare($sql);
+        $studentIdentifier = null;
         
         $stmt->bindParam(':name', $data['name']);
         $stmt->bindParam(':email', $data['email']);
         $stmt->bindParam(':password_hash', $data['password_hash']);
         $stmt->bindParam(':role', $data['role']);
-        $stmt->bindParam(':grade', $data['grade']);
+        $stmt->bindParam(':grade', $normalizedGrade);
+        $stmt->bindParam(':student_identifier', $studentIdentifier);
         $stmt->bindParam(':teaching_subject', $data['teaching_subject']);
         $stmt->bindParam(':class_id', $data['class_id']);
         
         if ($stmt->execute()) {
-            return $this->db->lastInsertId();
+            $newUserId = (int) $this->db->lastInsertId();
+
+            if (($data['role'] ?? null) === 'student' && $normalizedGrade) {
+                $studentIdentifier = $this->buildStudentIdentifier([
+                    'id' => $newUserId,
+                    'role' => 'student',
+                    'grade' => $normalizedGrade,
+                ]);
+
+                $updateStmt = $this->db->prepare(
+                    "UPDATE " . $this->table . " SET student_identifier = :student_identifier WHERE id = :user_id"
+                );
+                $updateStmt->execute([
+                    'student_identifier' => $studentIdentifier,
+                    'user_id' => $newUserId,
+                ]);
+            }
+
+            return $newUserId;
         }
         
         return false;
@@ -75,7 +135,7 @@ class User {
      * Password hashes are never returned.
      */
     public function getAll($role = null) {
-        $sql = "SELECT u.id, u.name, u.email, u.role, u.status, u.profile_image, u.grade, u.teaching_subject, u.class_id,
+        $sql = "SELECT u.id, u.name, u.email, u.role, u.status, u.profile_image, u.grade, u.student_identifier, u.teaching_subject, u.class_id,
                        c.name AS class_name, u.created_at, u.updated_at
                 FROM " . $this->table . " u
                 LEFT JOIN classes c ON u.class_id = c.id";
@@ -89,7 +149,8 @@ class User {
         $sql .= " ORDER BY u.created_at DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $users = $stmt->fetchAll();
+        return array_map([$this, 'appendDerivedFields'], $users);
     }
 
     /**
