@@ -148,23 +148,68 @@ class User {
      * Get all users with optional role filtering.
      * Password hashes are never returned.
      */
-    public function getAll($role = null) {
+    public function getAll($role = null, $search = null, $page = null, $perPage = null) {
         $sql = "SELECT u.id, u.name, u.email, u.role, u.status, u.profile_image, u.grade, u.student_identifier, u.teaching_subject, u.class_id,
                        c.name AS class_name, u.created_at, u.updated_at
                 FROM " . $this->table . " u
                 LEFT JOIN classes c ON u.class_id = c.id";
 
         $params = [];
+        $where = [];
+
         if ($role) {
-            $sql .= " WHERE u.role = :role";
+            $where[] = "u.role = :role";
             $params['role'] = $role;
         }
 
+        if ($search) {
+            $where[] = "(u.name LIKE :search OR u.email LIKE :search OR u.student_identifier LIKE :search OR c.name LIKE :search)";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+
         $sql .= " ORDER BY u.created_at DESC";
+
+        if ($page !== null && $perPage !== null) {
+            $offset = max(0, ((int) $page - 1) * (int) $perPage);
+            $limit = max(1, (int) $perPage);
+            $sql .= " LIMIT " . $limit . " OFFSET " . $offset;
+        }
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $users = $stmt->fetchAll();
         return array_map([$this, 'appendDerivedFields'], $users);
+    }
+
+    /**
+     * Count users with optional role/search filters.
+     */
+    public function countAll($role = null, $search = null) {
+        $sql = "SELECT COUNT(*) FROM " . $this->table . " u LEFT JOIN classes c ON u.class_id = c.id";
+        $params = [];
+        $where = [];
+
+        if ($role) {
+            $where[] = "u.role = :role";
+            $params['role'] = $role;
+        }
+
+        if ($search) {
+            $where[] = "(u.name LIKE :search OR u.email LIKE :search OR u.student_identifier LIKE :search OR c.name LIKE :search)";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
     }
 
     /**

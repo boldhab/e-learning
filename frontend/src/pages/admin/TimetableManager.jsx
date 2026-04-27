@@ -25,6 +25,10 @@ const ClassSubjectManager = () => {
   const [studentToAddId, setStudentToAddId] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [teacherToAddId, setTeacherToAddId] = useState('');
+  const [classSearch, setClassSearch] = useState('');
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [classPage, setClassPage] = useState(1);
+  const [subjectPage, setSubjectPage] = useState(1);
   const availableStudents = students.filter((student) => !student.class_id);
   const unassignedTeachers = teachers.filter((teacher) => !(teacher.teaching_subject || '').trim());
   const selectedAssignmentSubject = subjects.find((subject) => Number(subject.id) === Number(assignForm.subject_id));
@@ -51,6 +55,17 @@ const ClassSubjectManager = () => {
         (teacher.teaching_subject || '').trim().toLowerCase() !== (selectedSubject.name || '').trim().toLowerCase()
       )
     : [];
+  const listPageSize = 8;
+  const filteredClasses = classes.filter((classItem) =>
+    classItem.name.toLowerCase().includes(classSearch.trim().toLowerCase())
+  );
+  const filteredSubjects = subjects.filter((subjectItem) =>
+    subjectItem.name.toLowerCase().includes(subjectSearch.trim().toLowerCase())
+  );
+  const classTotalPages = Math.max(1, Math.ceil(filteredClasses.length / listPageSize));
+  const subjectTotalPages = Math.max(1, Math.ceil(filteredSubjects.length / listPageSize));
+  const paginatedClasses = filteredClasses.slice((classPage - 1) * listPageSize, classPage * listPageSize);
+  const paginatedSubjects = filteredSubjects.slice((subjectPage - 1) * listPageSize, subjectPage * listPageSize);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -93,6 +108,22 @@ const ClassSubjectManager = () => {
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  useEffect(() => {
+    setClassPage(1);
+  }, [classSearch]);
+
+  useEffect(() => {
+    setSubjectPage(1);
+  }, [subjectSearch]);
+
+  useEffect(() => {
+    setClassPage((currentPage) => Math.min(currentPage, Math.max(1, Math.ceil(filteredClasses.length / listPageSize))));
+  }, [filteredClasses.length]);
+
+  useEffect(() => {
+    setSubjectPage((currentPage) => Math.min(currentPage, Math.max(1, Math.ceil(filteredSubjects.length / listPageSize))));
+  }, [filteredSubjects.length]);
 
   const handleCreateClass = async (e) => {
     e.preventDefault();
@@ -534,11 +565,18 @@ const ClassSubjectManager = () => {
             <BookOpen size={20} className="text-indigo-600" />
             <h3 className="text-xl font-black text-slate-900">Classes <span className="text-slate-300 font-normal">({classes.length})</span></h3>
           </div>
+          <input
+            type="text"
+            value={classSearch}
+            onChange={(event) => setClassSearch(event.target.value)}
+            placeholder="Search classes..."
+            className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-300"
+          />
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
-            ) : classes.length > 0 ? (
-              classes.map(c => (
+            ) : paginatedClasses.length > 0 ? (
+              paginatedClasses.map(c => (
                 <div
                   key={c.id}
                   role="button"
@@ -575,8 +613,33 @@ const ClassSubjectManager = () => {
                 </div>
               ))
             ) : (
-              <p className="text-center text-slate-400 py-8 text-sm font-medium">No classes yet. Create one above.</p>
+              <p className="text-center text-slate-400 py-8 text-sm font-medium">No classes found.</p>
             )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Showing {paginatedClasses.length} of {filteredClasses.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setClassPage((page) => Math.max(1, page - 1))}
+                disabled={classPage <= 1}
+                className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="font-semibold">{classPage}/{classTotalPages}</span>
+              <button
+                type="button"
+                onClick={() => setClassPage((page) => Math.min(classTotalPages, page + 1))}
+                disabled={classPage >= classTotalPages}
+                className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
           {selectedClass && (
@@ -635,11 +698,18 @@ const ClassSubjectManager = () => {
             <Layers size={20} className="text-amber-500" />
             <h3 className="text-xl font-black text-slate-900">Subjects <span className="text-slate-300 font-normal">({subjects.length})</span></h3>
           </div>
+          <input
+            type="text"
+            value={subjectSearch}
+            onChange={(event) => setSubjectSearch(event.target.value)}
+            placeholder="Search subjects..."
+            className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-amber-300"
+          />
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
-            ) : subjects.length > 0 ? (
-              subjects.map(s => (
+            ) : paginatedSubjects.length > 0 ? (
+              paginatedSubjects.map(s => (
                 <div
                   key={s.id}
                   role="button"
@@ -676,8 +746,33 @@ const ClassSubjectManager = () => {
                 </div>
               ))
             ) : (
-              <p className="text-center text-slate-400 py-8 text-sm font-medium">No subjects yet. Create one above.</p>
+              <p className="text-center text-slate-400 py-8 text-sm font-medium">No subjects found.</p>
             )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Showing {paginatedSubjects.length} of {filteredSubjects.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSubjectPage((page) => Math.max(1, page - 1))}
+                disabled={subjectPage <= 1}
+                className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="font-semibold">{subjectPage}/{subjectTotalPages}</span>
+              <button
+                type="button"
+                onClick={() => setSubjectPage((page) => Math.min(subjectTotalPages, page + 1))}
+                disabled={subjectPage >= subjectTotalPages}
+                className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
           {selectedSubject && (

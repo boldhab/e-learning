@@ -4,11 +4,30 @@ const userService = {
   /**
    * Get all users with optional role filter
    */
-  getUsers: async (role = null) => {
+  getUsers: async (options = null) => {
     try {
-      const url = role ? `/admin/users?role=${role}` : '/admin/users';
-      const response = await api.get(url);
-      return response.data.users;
+      const normalizedOptions = typeof options === 'string' || options === null
+        ? { role: options }
+        : (options || {});
+
+      const params = {
+        page: normalizedOptions.page || 1,
+        per_page: normalizedOptions.perPage || 20,
+      };
+
+      if (normalizedOptions.role) {
+        params.role = normalizedOptions.role;
+      }
+
+      if (normalizedOptions.search) {
+        params.search = normalizedOptions.search;
+      }
+
+      const response = await api.get('/admin/users', { params });
+      return {
+        users: response.data.users || [],
+        pagination: response.data.pagination || null,
+      };
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;

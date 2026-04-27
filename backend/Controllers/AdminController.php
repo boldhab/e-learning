@@ -115,9 +115,21 @@ class AdminController {
         }
 
         $role = $_GET['role'] ?? null;
+        $search = trim((string)($_GET['search'] ?? ''));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = max(1, min(100, (int)($_GET['per_page'] ?? 20)));
+        $users = $this->userModel->getAll($role, $search !== '' ? $search : null, $page, $perPage);
+        $total = $this->userModel->countAll($role, $search !== '' ? $search : null);
+
         echo json_encode([
             'status' => 'success',
-            'users' => $this->userModel->getAll($role)
+            'users' => $users,
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => (int)ceil($total / $perPage),
+            ],
         ]);
     }
 
@@ -781,8 +793,22 @@ class AdminController {
         }
 
         $role = $_GET['role'] ?? null;
-        $users = $this->userModel->getAll($role);
-        echo json_encode(['status' => 'success', 'users' => $users]);
+        $search = trim((string)($_GET['search'] ?? ''));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = max(1, min(100, (int)($_GET['per_page'] ?? 20)));
+        $users = $this->userModel->getAll($role, $search !== '' ? $search : null, $page, $perPage);
+        $total = $this->userModel->countAll($role, $search !== '' ? $search : null);
+
+        echo json_encode([
+            'status' => 'success',
+            'users' => $users,
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => (int)ceil($total / $perPage),
+            ],
+        ]);
     }
 
     /**

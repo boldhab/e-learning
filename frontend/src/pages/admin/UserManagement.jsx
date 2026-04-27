@@ -20,7 +20,12 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage] = useState(12);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -42,14 +47,39 @@ const UserManagement = () => {
   });
 
   useEffect(() => {
-    fetchUsers();
+    const timeoutId = setTimeout(() => {
+      setCurrentPage(1);
+      setDebouncedSearch(searchTerm.trim());
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [roleFilter]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [roleFilter, debouncedSearch, currentPage]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const data = await userService.getUsers(roleFilter === 'all' ? null : roleFilter);
-      setUsers(data);
+      const data = await userService.getUsers({
+        role: roleFilter === 'all' ? null : roleFilter,
+        search: debouncedSearch || null,
+        page: currentPage,
+        perPage,
+      });
+      const pagination = data.pagination || {};
+      setUsers(data.users || []);
+      setTotalUsers(pagination.total || 0);
+      setTotalPages(Math.max(1, pagination.total_pages || 1));
+
+      if (pagination.total_pages && currentPage > pagination.total_pages) {
+        setCurrentPage(pagination.total_pages);
+      }
     } catch (error) {
       setFeedback({ type: 'error', message: 'Failed to load users.' });
     } finally {
@@ -80,6 +110,7 @@ const UserManagement = () => {
 
       if (roleFilter !== 'all' && roleFilter !== createdRole) {
         setRoleFilter('all');
+        setCurrentPage(1);
       } else {
         fetchUsers();
       }
@@ -146,11 +177,6 @@ const UserManagement = () => {
       setIsSubmitting(false);
     }
   };
-
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -242,8 +268,8 @@ const UserManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map(user => (
+              ) : users.length > 0 ? (
+                users.map(user => (
                   <tr key={user.id} className="hover:bg-slate-50/80 transition-all group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
@@ -322,12 +348,39 @@ const UserManagement = () => {
               ) : (
                 <tr>
                   <td colSpan="6" className="px-8 py-20 text-center">
-                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">No matching users found</p>
+                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">No users found</p>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Showing {users.length} of {totalUsers} users
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage <= 1 || loading}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm font-semibold text-slate-600">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage >= totalPages || loading}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

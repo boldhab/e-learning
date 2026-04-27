@@ -8,7 +8,11 @@ const adminService = {
 
   getUsers: async (role) => {
     const response = await api.get('/admin/users', {
-      params: role && role !== 'all' ? { role } : undefined,
+      params: {
+        ...(role && role !== 'all' ? { role } : {}),
+        page: 1,
+        per_page: 500,
+      },
     });
     return response.data.users || [];
   },
