@@ -69,7 +69,9 @@ export const contentService = {
           }
         });
         return response.data;
-      } else {
+      }
+
+      if (type === 'reference') {
         const response = await api.post('/teacher/materials', {
           chapter_id: chapterId,
           title,
@@ -79,6 +81,8 @@ export const contentService = {
         });
         return response.data;
       }
+
+      throw new Error('A file is required for learning materials.');
     } catch (error) {
       console.error('Error adding material:', error);
       throw error;

@@ -35,6 +35,7 @@ const CourseContentEditor = () => {
   const [materialType, setMaterialType] = useState('learning'); // learning or reference
   const [materialFile, setMaterialFile] = useState(null);
   const [materialUrl, setMaterialUrl] = useState('');
+  const [materialError, setMaterialError] = useState('');
 
   useEffect(() => {
     fetchCourseContent();
@@ -80,22 +81,39 @@ const CourseContentEditor = () => {
   };
 
   const handleAddMaterial = async () => {
-    if (!materialTitle.trim() || !activeChapterId) return;
+    if (!materialTitle.trim() || !activeChapterId) {
+      setMaterialError('Resource title is required.');
+      return;
+    }
+
+    if (materialType === 'learning' && !materialFile) {
+      setMaterialError('Please choose a file before adding the resource.');
+      return;
+    }
+
+    if (materialType === 'reference' && !materialUrl.trim()) {
+      setMaterialError('Please enter a resource URL before adding the resource.');
+      return;
+    }
+
     try {
+      setMaterialError('');
       const materialData = {
         type: materialType,
         file: materialFile,
-        url: materialUrl,
+        url: materialUrl.trim(),
         description: ''
       };
       await contentService.addMaterial(activeChapterId, materialTitle, materialData);
       setMaterialTitle('');
       setMaterialFile(null);
       setMaterialUrl('');
+      setMaterialType('learning');
       setShowAddMaterial(false);
       fetchCourseContent();
     } catch (error) {
-      alert('Failed to add material');
+      const message = error?.response?.data?.error || 'Failed to add resource';
+      setMaterialError(message);
     }
   };
 
@@ -126,7 +144,10 @@ const CourseContentEditor = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+          <button
+            onClick={() => navigate(`/teacher/course/${courseId}/preview`)}
+            className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+          >
             Preview as Student
           </button>
           <button className="px-4 py-2 text-sm font-bold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors shadow-sm shadow-primary-200">
@@ -268,7 +289,10 @@ const CourseContentEditor = () => {
                      Learning Materials
                    </h3>
                    <button 
-                     onClick={() => setShowAddMaterial(true)}
+                     onClick={() => {
+                       setMaterialError('');
+                       setShowAddMaterial(true);
+                     }}
                      className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:border-primary-300 hover:text-primary-600 transition-all shadow-sm"
                    >
                      Add Material
@@ -339,8 +363,20 @@ const CourseContentEditor = () => {
                          </div>
                        )}
 
+                       {materialError && (
+                         <p className="text-sm font-medium text-red-600">{materialError}</p>
+                       )}
+
                        <div className="flex justify-end gap-3 mt-6">
-                         <button onClick={() => setShowAddMaterial(false)} className="px-4 py-2 text-sm font-bold text-slate-500">Cancel</button>
+                         <button
+                           onClick={() => {
+                             setShowAddMaterial(false);
+                             setMaterialError('');
+                           }}
+                           className="px-4 py-2 text-sm font-bold text-slate-500"
+                         >
+                           Cancel
+                         </button>
                          <button 
                            onClick={handleAddMaterial}
                            className="px-6 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all"

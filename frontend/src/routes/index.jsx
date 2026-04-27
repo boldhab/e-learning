@@ -127,6 +127,14 @@ export const AppRoutes = () => (
           </ProtectedRoute>
         }
       />
+      <Route
+        path="teacher/course/:courseId/preview"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
+            <CourseViewer />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="student/courses"

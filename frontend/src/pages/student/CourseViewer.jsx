@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, BookOpen, FileText, Download, 
   ExternalLink, CheckCircle, Info, ChevronRight,
@@ -10,11 +10,13 @@ import studentService from '../../services/studentService';
 const CourseViewer = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeChapter, setActiveChapter] = useState(null);
   const [activeTab, setActiveTab] = useState('notes'); // notes, materials, reference
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isTeacherPreview = location.pathname.startsWith('/teacher/course/');
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -57,7 +59,7 @@ const CourseViewer = () => {
       `}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <button 
-            onClick={() => navigate('/student/courses')}
+            onClick={() => navigate(isTeacherPreview ? `/teacher/course/${courseId}/edit` : '/student/courses')}
             className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 transition-all flex items-center gap-2 group"
           >
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />

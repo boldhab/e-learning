@@ -9,6 +9,7 @@ use Models\Chapter;
 use Models\ChapterNote;
 use Models\Material;
 use Core\JwtHandler;
+use PDO;
 
 class StudentController {
     private $userModel;
@@ -27,6 +28,22 @@ class StudentController {
         $this->noteModel = new ChapterNote();
         $this->materialModel = new Material();
         $this->db = \Core\Database::getInstance()->getConnection();
+    }
+
+    private function buildUploadUrl($path) {
+        if (!$path) {
+            return $path;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+
+        return $basePath . '/Uploads/' . $normalizedPath;
     }
 
     /**
@@ -122,6 +139,18 @@ class StudentController {
             // 3. Fetch materials
             $learning = $this->materialModel->getLearningByChapter($chapter['id']);
             $reference = $this->materialModel->getReferenceByChapter($chapter['id']);
+
+            $learning = array_map(function ($material) {
+                $material['file_url'] = $this->buildUploadUrl($material['file_url'] ?? '');
+                return $material;
+            }, $learning);
+
+            $reference = array_map(function ($material) {
+                $material['url_or_link'] = $material['url_or_link']
+                    ?? $material['file_url_or_link']
+                    ?? '';
+                return $material;
+            }, $reference);
 
             $structuredChapters[] = [
                 'id' => $chapter['id'],
