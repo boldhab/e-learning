@@ -18,9 +18,39 @@ const ClassSubjectManager = () => {
   const [className, setClassName] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [subjectName, setSubjectName] = useState('');
+  const [selectedSubjectTeacherIds, setSelectedSubjectTeacherIds] = useState([]);
   const [assignForm, setAssignForm] = useState({ class_id: '', subject_id: '', teacher_id: '' });
   const [submitting, setSubmitting] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState(null);
+  const [studentToAddId, setStudentToAddId] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const [teacherToAddId, setTeacherToAddId] = useState('');
   const availableStudents = students.filter((student) => !student.class_id);
+  const unassignedTeachers = teachers.filter((teacher) => !(teacher.teaching_subject || '').trim());
+  const selectedAssignmentSubject = subjects.find((subject) => Number(subject.id) === Number(assignForm.subject_id));
+  const assignableTeachers = selectedAssignmentSubject
+    ? teachers.filter((teacher) =>
+        (teacher.teaching_subject || '').trim().toLowerCase() === (selectedAssignmentSubject.name || '').trim().toLowerCase()
+      )
+    : [];
+  const selectedClass = classes.find((classItem) => Number(classItem.id) === Number(selectedClassId)) || null;
+  const studentsInSelectedClass = selectedClass
+    ? students.filter((student) => Number(student.class_id) === Number(selectedClass.id))
+    : [];
+  const studentsAvailableToAdd = selectedClass
+    ? students.filter((student) => Number(student.class_id) !== Number(selectedClass.id))
+    : [];
+  const selectedSubject = subjects.find((subject) => Number(subject.id) === Number(selectedSubjectId)) || null;
+  const teachersInSelectedSubject = selectedSubject
+    ? teachers.filter((teacher) =>
+        (teacher.teaching_subject || '').trim().toLowerCase() === (selectedSubject.name || '').trim().toLowerCase()
+      )
+    : [];
+  const teachersAvailableToAddToSubject = selectedSubject
+    ? teachers.filter((teacher) =>
+        (teacher.teaching_subject || '').trim().toLowerCase() !== (selectedSubject.name || '').trim().toLowerCase()
+      )
+    : [];
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -42,6 +72,19 @@ const ClassSubjectManager = () => {
       setTeachers(tchs);
       setStudents(stds);
       setAssignments(asgns);
+      setSelectedSubjectTeacherIds((currentIds) => {
+        const availableIds = new Set(tchs
+          .filter((teacher) => !(teacher.teaching_subject || '').trim())
+          .map((teacher) => Number(teacher.id))
+        );
+        return currentIds.filter((id) => availableIds.has(Number(id)));
+      });
+      setSelectedClassId((currentClassId) => (
+        cls.some((classItem) => Number(classItem.id) === Number(currentClassId)) ? currentClassId : null
+      ));
+      setSelectedSubjectId((currentSubjectId) => (
+        subs.some((subjectItem) => Number(subjectItem.id) === Number(currentSubjectId)) ? currentSubjectId : null
+      ));
     } catch {
       showToast('Failed to load data', 'error');
     } finally {
@@ -60,12 +103,15 @@ const ClassSubjectManager = () => {
     }
     setSubmitting('class');
     try {
-      await adminService.createClass({
+      const response = await adminService.createClass({
         name: className.trim(),
         student_ids: selectedStudentIds,
       });
       setClassName('');
       setSelectedStudentIds([]);
+      if (response?.class_id) {
+        setSelectedClassId(response.class_id);
+      }
       showToast('Class created and students assigned successfully');
       await loadAll();
     } catch (err) {
@@ -88,15 +134,34 @@ const ClassSubjectManager = () => {
     if (!subjectName.trim()) return;
     setSubmitting('subject');
     try {
-      await adminService.createSubject(subjectName.trim());
+      const response = await adminService.createSubject({
+        name: subjectName.trim(),
+        teacher_ids: selectedSubjectTeacherIds,
+      });
       setSubjectName('');
-      showToast('Subject created successfully');
+      setSelectedSubjectTeacherIds([]);
+      if (response?.subject_id) {
+        setSelectedSubjectId(response.subject_id);
+      }
+      if ((response?.assigned_teachers || 0) > 0) {
+        showToast(`Subject created and ${response.assigned_teachers} teacher(s) assigned`);
+      } else {
+        showToast('Subject created successfully');
+      }
       await loadAll();
     } catch (err) {
       showToast(err?.response?.data?.error || 'Failed to create subject', 'error');
     } finally {
       setSubmitting('');
     }
+  };
+
+  const toggleSubjectTeacherSelection = (teacherId) => {
+    setSelectedSubjectTeacherIds((current) => (
+      current.includes(teacherId)
+        ? current.filter((id) => id !== teacherId)
+        : [...current, teacherId]
+    ));
   };
 
   const handleDeleteClass = async (classItem) => {
@@ -110,10 +175,51 @@ const ClassSubjectManager = () => {
     setSubmitting(`delete-class-${classItem.id}`);
     try {
       await adminService.deleteClass(classItem.id);
+      if (Number(selectedClassId) === Number(classItem.id)) {
+        setSelectedClassId(null);
+      }
       showToast('Class deleted successfully');
       await loadAll();
     } catch (err) {
       showToast(err?.response?.data?.error || 'Failed to delete class', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleAddStudentToClass = async (e) => {
+    e.preventDefault();
+
+    if (!selectedClass || !studentToAddId) {
+      return;
+    }
+
+    const student = students.find((item) => Number(item.id) === Number(studentToAddId));
+    if (!student) {
+      showToast('Selected student was not found', 'error');
+      return;
+    }
+
+    if (student.class_id && Number(student.class_id) !== Number(selectedClass.id)) {
+      const shouldMove = window.confirm(
+        `${student.name} is currently in ${student.class_name || 'another class'}. Move this student to ${selectedClass.name}?`
+      );
+      if (!shouldMove) {
+        return;
+      }
+    }
+
+    setSubmitting('add-student');
+    try {
+      await adminService.assignStudent({
+        student_id: Number(studentToAddId),
+        class_id: Number(selectedClass.id),
+      });
+      setStudentToAddId('');
+      showToast('Student added to class successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to add student to class', 'error');
     } finally {
       setSubmitting('');
     }
@@ -130,10 +236,63 @@ const ClassSubjectManager = () => {
     setSubmitting(`delete-subject-${subjectItem.id}`);
     try {
       await adminService.deleteSubject(subjectItem.id);
+      if (Number(selectedSubjectId) === Number(subjectItem.id)) {
+        setSelectedSubjectId(null);
+      }
       showToast('Subject deleted successfully');
       await loadAll();
     } catch (err) {
       showToast(err?.response?.data?.error || 'Failed to delete subject', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleAddTeacherToSubject = async (e) => {
+    e.preventDefault();
+
+    if (!selectedSubject || !teacherToAddId) {
+      return;
+    }
+
+    setSubmitting('add-subject-teacher');
+    try {
+      await adminService.addTeachersToSubject({
+        subject_id: Number(selectedSubject.id),
+        teacher_ids: [Number(teacherToAddId)],
+      });
+      setTeacherToAddId('');
+      showToast('Teacher added to subject successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to add teacher to subject', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleRemoveTeacherFromSubject = async (teacherItem) => {
+    if (!selectedSubject) {
+      return;
+    }
+
+    const confirmRemove = window.confirm(
+      `Remove ${teacherItem.name} from ${selectedSubject.name}?`
+    );
+    if (!confirmRemove) {
+      return;
+    }
+
+    setSubmitting(`remove-subject-teacher-${teacherItem.id}`);
+    try {
+      await adminService.removeTeacherFromSubject({
+        subject_id: Number(selectedSubject.id),
+        teacher_id: Number(teacherItem.id),
+      });
+      showToast('Teacher removed from subject successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to remove teacher from subject', 'error');
     } finally {
       setSubmitting('');
     }
@@ -218,7 +377,9 @@ const ClassSubjectManager = () => {
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{student.name}</p>
-                        <p className="text-xs text-slate-400 truncate">{student.email}</p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {student.student_identifier || 'Student ID pending'}
+                        </p>
                       </div>
                       <input
                         type="checkbox"
@@ -264,6 +425,44 @@ const ClassSubjectManager = () => {
             placeholder="Subject name..."
             className="w-full px-5 py-3.5 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:font-normal placeholder:text-slate-300"
           />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign Teachers to Subject</p>
+              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                {selectedSubjectTeacherIds.length} selected
+              </span>
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-2xl bg-slate-50 p-3 space-y-2">
+              {unassignedTeachers.length > 0 ? (
+                unassignedTeachers.map((teacher) => {
+                  const checked = selectedSubjectTeacherIds.includes(teacher.id);
+                  return (
+                    <label
+                      key={teacher.id}
+                      className={`flex items-center justify-between gap-3 rounded-2xl px-4 py-3 cursor-pointer transition-all ${
+                        checked ? 'bg-amber-50 border border-amber-100' : 'bg-white border border-transparent'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{teacher.name}</p>
+                        <p className="text-xs text-slate-400 truncate">{teacher.teaching_subject || 'No subject specialization set'}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSubjectTeacherSelection(teacher.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                      />
+                    </label>
+                  );
+                })
+              ) : (
+                <p className="px-3 py-6 text-sm text-slate-400 text-center font-medium">
+                  No unassigned teachers available. Remove a teacher from another subject or create a new teacher account.
+                </p>
+              )}
+            </div>
+          </div>
           <button
             type="submit"
             disabled={submitting === 'subject'}
@@ -297,7 +496,7 @@ const ClassSubjectManager = () => {
           <select
             required
             value={assignForm.subject_id}
-            onChange={(e) => setAssignForm(p => ({ ...p, subject_id: e.target.value }))}
+            onChange={(e) => setAssignForm(p => ({ ...p, subject_id: e.target.value, teacher_id: '' }))}
             className="w-full px-5 py-3 bg-white/10 text-white rounded-2xl outline-none font-bold focus:bg-white/20 transition-all appearance-none"
           >
             <option value="" className="text-slate-900">Select subject…</option>
@@ -307,10 +506,13 @@ const ClassSubjectManager = () => {
             required
             value={assignForm.teacher_id}
             onChange={(e) => setAssignForm(p => ({ ...p, teacher_id: e.target.value }))}
+            disabled={!assignForm.subject_id}
             className="w-full px-5 py-3 bg-white/10 text-white rounded-2xl outline-none font-bold focus:bg-white/20 transition-all appearance-none"
           >
-            <option value="" className="text-slate-900">Select teacher…</option>
-            {teachers.map(t => <option key={t.id} value={t.id} className="text-slate-900">{t.name} ({t.teaching_subject || 'General'})</option>)}
+            <option value="" className="text-slate-900">
+              {assignForm.subject_id ? 'Select teacher…' : 'Select subject first…'}
+            </option>
+            {assignableTeachers.map(t => <option key={t.id} value={t.id} className="text-slate-900">{t.name} ({t.teaching_subject || 'General'})</option>)}
           </select>
           <button
             type="submit"
@@ -337,13 +539,32 @@ const ClassSubjectManager = () => {
               <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
             ) : classes.length > 0 ? (
               classes.map(c => (
-                <div key={c.id} className="flex items-center justify-between px-5 py-3.5 bg-indigo-50/50 rounded-2xl group hover:bg-indigo-50 transition-colors">
+                <div
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedClassId(c.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedClassId(c.id);
+                    }
+                  }}
+                  className={`flex items-center justify-between px-5 py-3.5 rounded-2xl group transition-colors cursor-pointer ${
+                    Number(selectedClassId) === Number(c.id)
+                      ? 'bg-indigo-100 ring-2 ring-indigo-200'
+                      : 'bg-indigo-50/50 hover:bg-indigo-50'
+                  }`}
+                >
                   <span className="font-bold text-slate-800">{c.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">ID #{c.id}</span>
                     <button
                       type="button"
-                      onClick={() => handleDeleteClass(c)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeleteClass(c);
+                      }}
                       disabled={submitting === `delete-class-${c.id}`}
                       className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-white transition-colors disabled:opacity-50"
                       title="Delete class"
@@ -357,6 +578,55 @@ const ClassSubjectManager = () => {
               <p className="text-center text-slate-400 py-8 text-sm font-medium">No classes yet. Create one above.</p>
             )}
           </div>
+
+          {selectedClass && (
+            <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-black text-slate-800">Students in {selectedClass.name}</h4>
+                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                  {studentsInSelectedClass.length} students
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                {studentsInSelectedClass.length > 0 ? (
+                  studentsInSelectedClass.map((student) => (
+                    <div key={student.id} className="rounded-xl bg-white px-3 py-2 border border-indigo-100">
+                      <p className="text-sm font-bold text-slate-800 truncate">{student.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{student.student_identifier || 'Student ID pending'}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No students are currently assigned to this class.</p>
+                )}
+              </div>
+
+              <form onSubmit={handleAddStudentToClass} className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add Student</label>
+                <div className="flex gap-2">
+                  <select
+                    value={studentToAddId}
+                    onChange={(event) => setStudentToAddId(event.target.value)}
+                    className="flex-1 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                  >
+                    <option value="">Select student...</option>
+                    {studentsAvailableToAdd.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.student_identifier || `Student #${student.id}`} - {student.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={submitting === 'add-student' || !studentToAddId}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {submitting === 'add-student' ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Subjects List */}
@@ -370,13 +640,32 @@ const ClassSubjectManager = () => {
               <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
             ) : subjects.length > 0 ? (
               subjects.map(s => (
-                <div key={s.id} className="flex items-center justify-between px-5 py-3.5 bg-amber-50/50 rounded-2xl group hover:bg-amber-50 transition-colors">
+                <div
+                  key={s.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedSubjectId(s.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedSubjectId(s.id);
+                    }
+                  }}
+                  className={`flex items-center justify-between px-5 py-3.5 rounded-2xl group transition-colors cursor-pointer ${
+                    Number(selectedSubjectId) === Number(s.id)
+                      ? 'bg-amber-100 ring-2 ring-amber-200'
+                      : 'bg-amber-50/50 hover:bg-amber-50'
+                  }`}
+                >
                   <span className="font-bold text-slate-800">{s.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">ID #{s.id}</span>
                     <button
                       type="button"
-                      onClick={() => handleDeleteSubject(s)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeleteSubject(s);
+                      }}
                       disabled={submitting === `delete-subject-${s.id}`}
                       className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-white transition-colors disabled:opacity-50"
                       title="Delete subject"
@@ -390,6 +679,66 @@ const ClassSubjectManager = () => {
               <p className="text-center text-slate-400 py-8 text-sm font-medium">No subjects yet. Create one above.</p>
             )}
           </div>
+
+          {selectedSubject && (
+            <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50/40 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-black text-slate-800">Teachers for {selectedSubject.name}</h4>
+                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                  {teachersInSelectedSubject.length} teachers
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                {teachersInSelectedSubject.length > 0 ? (
+                  teachersInSelectedSubject.map((teacher) => (
+                    <div key={teacher.id} className="rounded-xl bg-white px-3 py-2 border border-amber-100 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{teacher.name}</p>
+                        <p className="text-xs text-slate-400 truncate">{teacher.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTeacherFromSubject(teacher)}
+                        disabled={submitting === `remove-subject-teacher-${teacher.id}`}
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                        title="Remove teacher"
+                      >
+                        {submitting === `remove-subject-teacher-${teacher.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No teachers assigned to this subject yet.</p>
+                )}
+              </div>
+
+              <form onSubmit={handleAddTeacherToSubject} className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add Teacher</label>
+                <div className="flex gap-2">
+                  <select
+                    value={teacherToAddId}
+                    onChange={(event) => setTeacherToAddId(event.target.value)}
+                    className="flex-1 rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-amber-200"
+                  >
+                    <option value="">Select teacher...</option>
+                    {teachersAvailableToAddToSubject.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name} ({teacher.teaching_subject || 'No subject'})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={submitting === 'add-subject-teacher' || !teacherToAddId}
+                    className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-60"
+                  >
+                    {submitting === 'add-subject-teacher' ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
 

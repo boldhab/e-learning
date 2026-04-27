@@ -99,6 +99,8 @@ switch ($resource) {
             $controller->listYears();
         } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createYear();
+        } elseif ($id === 'years' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteYear();
         } elseif ($id === 'assignments' && $_SERVER['REQUEST_METHOD'] === 'GET') {
             $controller->listAssignments();
         } elseif ($id === 'assign' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -109,6 +111,10 @@ switch ($resource) {
             $controller->setActiveYear();
         } elseif ($id === 'reset-password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->resetUserPassword();
+        } elseif ($id === 'subject-teachers' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->addTeachersToSubject();
+        } elseif ($id === 'subject-teachers' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->removeTeacherFromSubject();
         } elseif ($id === 'users') {
             if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $controller->getUsers();

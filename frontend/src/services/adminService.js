@@ -38,8 +38,11 @@ const adminService = {
     return response.data.subjects || [];
   },
 
-  createSubject: async (name) => {
-    const response = await api.post('/subjects', { name });
+  createSubject: async (subjectData) => {
+    const payload = typeof subjectData === 'string'
+      ? { name: subjectData }
+      : subjectData;
+    const response = await api.post('/subjects', payload);
     return response.data;
   },
 
@@ -63,6 +66,11 @@ const adminService = {
     return response.data;
   },
 
+  deleteYear: async (yearId) => {
+    const response = await api.delete(`/admin/years?id=${yearId}`);
+    return response.data;
+  },
+
   getAssignments: async () => {
     const response = await api.get('/admin/assignments');
     return response.data.assignments || [];
@@ -75,6 +83,16 @@ const adminService = {
 
   assignStudent: async (payload) => {
     const response = await api.post('/admin/assign-student', payload);
+    return response.data;
+  },
+
+  addTeachersToSubject: async (payload) => {
+    const response = await api.post('/admin/subject-teachers', payload);
+    return response.data;
+  },
+
+  removeTeacherFromSubject: async (payload) => {
+    const response = await api.delete('/admin/subject-teachers', { data: payload });
     return response.data;
   },
 };

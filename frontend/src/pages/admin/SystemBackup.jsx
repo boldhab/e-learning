@@ -8,6 +8,27 @@ const SystemBackup = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingYear, setSavingYear] = useState(false);
+  const [activatingYearId, setActivatingYearId] = useState(null);
+  const [deletingYearId, setDeletingYearId] = useState(null);
+
+  const formatApiError = (err, fallback) => {
+    const apiError = err?.response?.data;
+    if (!apiError) {
+      return fallback;
+    }
+
+    if (apiError.details && typeof apiError.details === 'object') {
+      const detailsText = Object.entries(apiError.details)
+        .filter(([, count]) => Number(count) > 0)
+        .map(([key, count]) => `${key}: ${count}`)
+        .join(', ');
+
+      return detailsText ? `${apiError.error} (${detailsText})` : (apiError.error || fallback);
+    }
+
+    return apiError.error || fallback;
+  };
 
   const loadYears = async () => {
     setLoading(true);
@@ -33,26 +54,68 @@ const SystemBackup = () => {
     setMessage('');
     setError('');
 
+    const normalizedYearName = yearName.trim();
+    const match = normalizedYearName.match(/^(\d{4})-(\d{4})$/);
+    if (!match) {
+      setError('Academic year format must be YYYY-YYYY (example: 2026-2027).');
+      return;
+    }
+
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    if (end !== start + 1) {
+      setError('Academic year end must be exactly one year after start year.');
+      return;
+    }
+
+    setSavingYear(true);
+
     try {
-      await adminService.createYear(yearName);
+      await adminService.createYear(normalizedYearName);
       setYearName('');
       setMessage('Academic year created successfully.');
       await loadYears();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to create academic year.');
+      setError(formatApiError(err, 'Failed to create academic year.'));
+    } finally {
+      setSavingYear(false);
     }
   };
 
   const handleActivate = async (yearId) => {
     setMessage('');
     setError('');
+    setActivatingYearId(yearId);
 
     try {
       await adminService.setActiveYear(yearId);
       setMessage('Active academic year updated.');
       await loadYears();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to activate academic year.');
+      setError(formatApiError(err, 'Failed to activate academic year.'));
+    } finally {
+      setActivatingYearId(null);
+    }
+  };
+
+  const handleDeleteYear = async (yearId, yearLabel) => {
+    const confirmed = window.confirm(`Delete academic year "${yearLabel}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setMessage('');
+    setError('');
+    setDeletingYearId(yearId);
+
+    try {
+      await adminService.deleteYear(yearId);
+      setMessage('Academic year deleted successfully.');
+      await loadYears();
+    } catch (err) {
+      setError(formatApiError(err, 'Failed to delete academic year.'));
+    } finally {
+      setDeletingYearId(null);
     }
   };
 
@@ -77,10 +140,11 @@ const SystemBackup = () => {
             value={yearName}
             onChange={(e) => setYearName(e.target.value)}
             placeholder="2026-2027"
+            maxLength={9}
             className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-indigo-400"
             required
           />
-          <button type="submit" className="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">
+          <button type="submit" disabled={savingYear} className="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
             Save academic year
           </button>
         </form>
@@ -105,14 +169,24 @@ const SystemBackup = () => {
                       {Number(year.is_active) === 1 ? 'Currently active' : 'Inactive'}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleActivate(year.id)}
-                    disabled={Number(year.is_active) === 1}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    {Number(year.is_active) === 1 ? 'Active' : 'Set active'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleActivate(year.id)}
+                      disabled={Number(year.is_active) === 1 || activatingYearId === year.id || deletingYearId === year.id}
+                      className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {Number(year.is_active) === 1 ? 'Active' : (activatingYearId === year.id ? 'Activating...' : 'Set active')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteYear(year.id, year.name)}
+                      disabled={Number(year.is_active) === 1 || deletingYearId === year.id || activatingYearId === year.id}
+                      className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {deletingYearId === year.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
                 </div>
               ))}
               {years.length === 0 && <p className="text-sm text-slate-500">No academic years found yet.</p>}

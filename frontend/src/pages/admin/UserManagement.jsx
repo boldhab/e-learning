@@ -61,6 +61,7 @@ const UserManagement = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setFeedback({ type: '', message: '' });
+    const createdRole = newUserData.role;
     try {
       const response = await userService.createUser(newUserData);
       setShowCreateModal(false);
@@ -76,7 +77,12 @@ const UserManagement = () => {
         ? `User created successfully. Student ID: ${response.student_identifier}`
         : 'User created successfully.';
       setFeedback({ type: 'success', message: successMessage });
-      fetchUsers();
+
+      if (roleFilter !== 'all' && roleFilter !== createdRole) {
+        setRoleFilter('all');
+      } else {
+        fetchUsers();
+      }
     } catch (error) {
       setFeedback({ type: 'error', message: error.response?.data?.error || 'Failed to create user' });
     } finally {
@@ -220,6 +226,7 @@ const UserManagement = () => {
               <tr className="bg-slate-50/50 border-b border-slate-100">
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Identity</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Access Level</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Student Details</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Joined Date</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
@@ -228,7 +235,7 @@ const UserManagement = () => {
             <tbody className="divide-y divide-slate-50 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-20 text-center">
+                  <td colSpan="6" className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 className="animate-spin text-primary-600" size={40} />
                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing user database...</p>
@@ -261,6 +268,16 @@ const UserManagement = () => {
                       }`}>
                         {user.role}
                       </span>
+                    </td>
+                    <td className="px-8 py-6">
+                      {user.role === 'student' ? (
+                        <div>
+                          <p className="text-xs font-extrabold text-slate-700">{user.student_identifier || 'Pending ID'}</p>
+                          <p className="text-xs text-slate-400 font-medium">{user.grade || 'Grade not set'}</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-semibold">N/A</span>
+                      )}
                     </td>
                     <td className="px-8 py-6">
                       <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ring-1 ${getStatusColor(user.status || 'active')}`}>
@@ -304,7 +321,7 @@ const UserManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-8 py-20 text-center">
+                  <td colSpan="6" className="px-8 py-20 text-center">
                     <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">No matching users found</p>
                   </td>
                 </tr>

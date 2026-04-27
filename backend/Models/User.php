@@ -236,6 +236,29 @@ class User {
     }
 
     /**
+     * Update a teacher specialization subject.
+     */
+    public function updateTeachingSubject($userId, $subjectName) {
+        $sql = "UPDATE " . $this->table . " SET teaching_subject = :subject_name WHERE id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'subject_name' => $subjectName,
+            'user_id' => $userId
+        ]);
+    }
+
+    /**
+     * Clear teacher specialization subject.
+     */
+    public function clearTeachingSubject($userId) {
+        $sql = "UPDATE " . $this->table . " SET teaching_subject = NULL WHERE id = :user_id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            'user_id' => $userId
+        ]);
+    }
+
+    /**
      * Delete a user
      */
     public function delete($userId) {

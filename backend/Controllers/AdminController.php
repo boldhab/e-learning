@@ -34,8 +34,7 @@ class AdminController {
      * Verify if the request is from an Admin
      */
     private function verifyAdmin() {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $this->getAuthorizationHeader();
         
         if (strpos($authHeader, 'Bearer ') !== 0) {
             return false;
@@ -49,6 +48,29 @@ class AdminController {
         }
 
         return $decoded;
+    }
+
+    /**
+     * Resolve Authorization header across SAPIs and header casing differences.
+     */
+    private function getAuthorizationHeader() {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+
+        foreach ($headers as $key => $value) {
+            if (strcasecmp($key, 'Authorization') === 0) {
+                return $value;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            return $_SERVER['HTTP_AUTHORIZATION'];
+        }
+
+        if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        return '';
     }
 
     /**
@@ -230,13 +252,170 @@ class AdminController {
             return;
         }
 
-        $result = $this->subjectModel->create($data['name']);
-        if ($result) {
-            echo json_encode(['status' => 'success', 'subject_id' => $result]);
-        } else {
+        $teacherIds = [];
+        if (isset($data['teacher_ids'])) {
+            if (!is_array($data['teacher_ids'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'teacher_ids must be an array']);
+                return;
+            }
+
+            $teacherIds = array_values(array_unique(array_filter(array_map('intval', $data['teacher_ids']))));
+            foreach ($teacherIds as $teacherId) {
+                $teacher = $this->userModel->findById($teacherId);
+                if (!$teacher || $teacher['role'] !== 'teacher') {
+                    http_response_code(400);
+                    echo json_encode(['error' => "Invalid teacher ID provided: {$teacherId}"]);
+                    return;
+                }
+            }
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $result = $this->subjectModel->create($data['name']);
+            if (!$result) {
+                $this->db->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to create subject. Name might already exist.']);
+                return;
+            }
+
+            foreach ($teacherIds as $teacherId) {
+                $updated = $this->userModel->updateTeachingSubject($teacherId, $data['name']);
+                if (!$updated) {
+                    $this->db->rollBack();
+                    http_response_code(500);
+                    echo json_encode(['error' => 'Failed to assign one or more teachers to this subject']);
+                    return;
+                }
+            }
+
+            $this->db->commit();
+            echo json_encode([
+                'status' => 'success',
+                'subject_id' => $result,
+                'assigned_teachers' => count($teacherIds)
+            ]);
+        } catch (\PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create subject. Name might already exist.']);
         }
+    }
+
+    /**
+     * Add one or more teachers to a subject specialization.
+     */
+    public function addTeachersToSubject() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $subjectId = $data['subject_id'] ?? null;
+        $teacherIds = $data['teacher_ids'] ?? [];
+
+        if (empty($subjectId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Subject ID is required']);
+            return;
+        }
+
+        if (!is_array($teacherIds) || count($teacherIds) === 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'At least one teacher ID is required']);
+            return;
+        }
+
+        $subject = $this->subjectModel->findById((int)$subjectId);
+        if (!$subject) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Subject not found']);
+            return;
+        }
+
+        $teacherIds = array_values(array_unique(array_filter(array_map('intval', $teacherIds))));
+        foreach ($teacherIds as $teacherId) {
+            $teacher = $this->userModel->findById($teacherId);
+            if (!$teacher || $teacher['role'] !== 'teacher') {
+                http_response_code(400);
+                echo json_encode(['error' => "Invalid teacher ID provided: {$teacherId}"]);
+                return;
+            }
+        }
+
+        foreach ($teacherIds as $teacherId) {
+            if (!$this->userModel->updateTeachingSubject($teacherId, $subject['name'])) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to assign one or more teachers to subject']);
+                return;
+            }
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Teachers assigned to subject successfully',
+            'assigned_teachers' => count($teacherIds)
+        ]);
+    }
+
+    /**
+     * Remove a teacher from a subject specialization.
+     */
+    public function removeTeacherFromSubject() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $subjectId = $data['subject_id'] ?? null;
+        $teacherId = $data['teacher_id'] ?? null;
+
+        if (empty($subjectId) || empty($teacherId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Subject ID and Teacher ID are required']);
+            return;
+        }
+
+        $subject = $this->subjectModel->findById((int)$subjectId);
+        if (!$subject) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Subject not found']);
+            return;
+        }
+
+        $teacher = $this->userModel->findById((int)$teacherId);
+        if (!$teacher || $teacher['role'] !== 'teacher') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid teacher ID']);
+            return;
+        }
+
+        if (strcasecmp((string)($teacher['teaching_subject'] ?? ''), (string)$subject['name']) !== 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'This teacher is not currently assigned to the selected subject']);
+            return;
+        }
+
+        if (!$this->userModel->clearTeachingSubject((int)$teacherId)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to remove teacher from subject']);
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Teacher removed from subject successfully'
+        ]);
     }
 
     /**
@@ -462,17 +641,45 @@ class AdminController {
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-        if (empty($data['name'])) {
+        $yearName = trim((string)($data['name'] ?? ''));
+        if ($yearName === '') {
             http_response_code(400);
             echo json_encode(['error' => 'Year name is required (e.g. 2024-2025)']);
             return;
         }
 
-        $result = $this->yearModel->create($data['name']);
-        if ($result) {
+        if (!preg_match('/^(\d{4})-(\d{4})$/', $yearName, $matches)) {
+            http_response_code(422);
+            echo json_encode(['error' => 'Academic year format must be YYYY-YYYY (example: 2026-2027)']);
+            return;
+        }
+
+        $startYear = (int)$matches[1];
+        $endYear = (int)$matches[2];
+        if ($endYear !== ($startYear + 1)) {
+            http_response_code(422);
+            echo json_encode(['error' => 'Academic year end must be exactly one year after start year']);
+            return;
+        }
+
+        try {
+            $result = $this->yearModel->create($yearName);
+            if (!$result) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to create academic year']);
+                return;
+            }
+
             echo json_encode(['status' => 'success', 'year_id' => $result]);
-        } else {
-            echo json_encode(['error' => 'Failed to create year']);
+        } catch (\PDOException $e) {
+            if ((int)$e->getCode() === 23000) {
+                http_response_code(409);
+                echo json_encode(['error' => 'Academic year already exists']);
+                return;
+            }
+
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create academic year']);
         }
     }
 
@@ -493,10 +700,73 @@ class AdminController {
             return;
         }
 
-        if ($this->yearModel->setActive($data['year_id'])) {
+        $yearId = (int)$data['year_id'];
+        if ($yearId <= 0) {
+            http_response_code(422);
+            echo json_encode(['error' => 'Year ID must be a positive integer']);
+            return;
+        }
+
+        if (!$this->yearModel->findById($yearId)) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Academic year not found']);
+            return;
+        }
+
+        if ($this->yearModel->setActive($yearId)) {
             echo json_encode(['status' => 'success', 'message' => 'Academic year updated successfully']);
         } else {
+            http_response_code(500);
             echo json_encode(['error' => 'Failed to update academic year']);
+        }
+    }
+
+    /**
+     * Delete an academic year when it has no linked records.
+     */
+    public function deleteYear() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $id = (int)($_GET['id'] ?? 0);
+        if ($id <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Year ID is required']);
+            return;
+        }
+
+        $year = $this->yearModel->findById($id);
+        if (!$year) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Academic year not found']);
+            return;
+        }
+
+        if ((int)$year['is_active'] === 1) {
+            http_response_code(409);
+            echo json_encode(['error' => 'Cannot delete the active academic year. Set another year active first.']);
+            return;
+        }
+
+        $usage = $this->yearModel->getLinkedUsageCounts($id);
+        $usageTotal = array_sum($usage);
+        if ($usageTotal > 0) {
+            http_response_code(409);
+            echo json_encode([
+                'error' => 'Cannot delete academic year with linked records',
+                'details' => $usage,
+            ]);
+            return;
+        }
+
+        if ($this->yearModel->delete($id)) {
+            echo json_encode(['status' => 'success', 'message' => 'Academic year deleted successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to delete academic year']);
         }
     }
 
