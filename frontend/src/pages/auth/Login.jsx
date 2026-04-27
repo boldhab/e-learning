@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -21,11 +21,11 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || "/dashboard";
 
-  // Load saved email if "Remember Me" was checked
+  // Load saved login identifier if "Remember Me" was checked
   useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    if (savedEmail) {
-      setEmail(savedEmail);
+    const savedIdentifier = localStorage.getItem('rememberedLoginIdentifier') || localStorage.getItem('rememberedEmail');
+    if (savedIdentifier) {
+      setIdentifier(savedIdentifier);
       setRememberMe(true);
     }
   }, []);
@@ -35,13 +35,8 @@ const Login = () => {
     setError('');
     
     // Enhanced validation
-    if (!email || !password) {
+    if (!identifier || !password) {
       setError('Please fill in all fields');
-      return;
-    }
-    
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email address');
       return;
     }
     
@@ -53,17 +48,19 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(identifier, password);
 
       if (rememberMe) {
-        localStorage.setItem('rememberedEmail', email);
+        localStorage.setItem('rememberedLoginIdentifier', identifier);
+        localStorage.removeItem('rememberedEmail');
       } else {
+        localStorage.removeItem('rememberedLoginIdentifier');
         localStorage.removeItem('rememberedEmail');
       }
 
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err?.response?.data?.error || 'Invalid email or password. Please try again.');
+      setError(err?.response?.data?.error || 'Invalid login ID or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -192,21 +189,21 @@ const Login = () => {
                 </div>
               )}
 
-              {/* Email Field */}
+              {/* Login ID Field */}
               <div className="group">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Email Address
+                  Email or Student ID
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                     <Mail size={18} />
                   </span>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     className="block w-full pl-12 pr-4 py-3.5 border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-slate-700 bg-white/50 placeholder:text-slate-400"
-                    placeholder="student@millennium.edu"
+                    placeholder="STU-G10-0007 or teacher@school.com"
                     required
                     disabled={isLoading}
                   />
@@ -335,7 +332,7 @@ const Login = () => {
             {/* Demo Credentials Hint */}
             <div className="mt-6 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
               <p className="text-xs text-center text-indigo-600">
-                <span className="font-semibold">Demo Credentials:</span> jane@teacher.com / password
+                <span className="font-semibold">Login Tip:</span> Students use Student ID (example: STU-G10-0007); teachers/admins use email.
               </p>
             </div>
           </div>

@@ -4,8 +4,8 @@ import storage from '../utils/localStorage';
 const USER_KEY = 'user';
 
 export const authService = {
-  login: async ({ email, password }) => {
-    const response = await api.post('/auth/login', { email, password });
+  login: async ({ identifier, password }) => {
+    const response = await api.post('/auth/login', { identifier, password });
     const payload = {
       ...response.data.user,
       token: response.data.token,

@@ -240,6 +240,90 @@ class AdminController {
     }
 
     /**
+     * Delete a class
+     */
+    public function deleteClass() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Class ID is required']);
+            return;
+        }
+
+        $class = $this->classModel->findById($id);
+        if (!$class) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Class not found']);
+            return;
+        }
+
+        $activeYear = $this->yearModel->getActiveYear();
+        if ($activeYear && $this->assignmentModel->hasActiveForClass($id, $activeYear['id'])) {
+            http_response_code(409);
+            echo json_encode([
+                'error' => 'Cannot delete class with active teacher assignments',
+                'details' => 'Remove the class assignments for the active academic year first.'
+            ]);
+            return;
+        }
+
+        if ($this->classModel->delete($id)) {
+            echo json_encode(['status' => 'success', 'message' => 'Class deleted successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to delete class']);
+        }
+    }
+
+    /**
+     * Delete a subject
+     */
+    public function deleteSubject() {
+        if (!$this->verifyAdmin()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: Admin access only']);
+            return;
+        }
+
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Subject ID is required']);
+            return;
+        }
+
+        $subject = $this->subjectModel->findById($id);
+        if (!$subject) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Subject not found']);
+            return;
+        }
+
+        $activeYear = $this->yearModel->getActiveYear();
+        if ($activeYear && $this->assignmentModel->hasActiveForSubject($id, $activeYear['id'])) {
+            http_response_code(409);
+            echo json_encode([
+                'error' => 'Cannot delete subject with active teacher assignments',
+                'details' => 'Remove the subject assignments for the active academic year first.'
+            ]);
+            return;
+        }
+
+        if ($this->subjectModel->delete($id)) {
+            echo json_encode(['status' => 'success', 'message' => 'Subject deleted successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to delete subject']);
+        }
+    }
+
+    /**
      * Assign a teacher to a class and subject
      */
     public function assignTeacher() {

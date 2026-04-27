@@ -28,6 +28,11 @@ const adminService = {
     return response.data;
   },
 
+  deleteClass: async (classId) => {
+    const response = await api.delete(`/classes?id=${classId}`);
+    return response.data;
+  },
+
   getSubjects: async () => {
     const response = await api.get('/subjects');
     return response.data.subjects || [];
@@ -35,6 +40,11 @@ const adminService = {
 
   createSubject: async (name) => {
     const response = await api.post('/subjects', { name });
+    return response.data;
+  },
+
+  deleteSubject: async (subjectId) => {
+    const response = await api.delete(`/subjects?id=${subjectId}`);
     return response.data;
   },
 

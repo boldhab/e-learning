@@ -67,6 +67,20 @@ class User {
     }
 
     /**
+     * Find a student by student identifier.
+     * @param string $studentIdentifier
+     * @return array|false
+     */
+    public function findByStudentIdentifier($studentIdentifier) {
+        $sql = "SELECT * FROM " . $this->table . " WHERE student_identifier = :student_identifier LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':student_identifier', $studentIdentifier);
+        $stmt->execute();
+
+        return $this->appendDerivedFields($stmt->fetch());
+    }
+
+    /**
      * Get user by ID (excluding sensitive data)
      * @param int $id
      * @return array|false

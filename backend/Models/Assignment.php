@@ -66,4 +66,32 @@ class Assignment {
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Check if a class has active-year teacher assignments.
+     */
+    public function hasActiveForClass($classId, $yearId) {
+        $sql = "SELECT COUNT(*) FROM " . $this->table . " WHERE class_id = :class_id AND academic_year_id = :year_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'class_id' => $classId,
+            'year_id' => $yearId
+        ]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * Check if a subject has active-year teacher assignments.
+     */
+    public function hasActiveForSubject($subjectId, $yearId) {
+        $sql = "SELECT COUNT(*) FROM " . $this->table . " WHERE subject_id = :subject_id AND academic_year_id = :year_id";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'subject_id' => $subjectId,
+            'year_id' => $yearId
+        ]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
 }

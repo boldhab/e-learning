@@ -70,6 +70,8 @@ switch ($resource) {
             ]);
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createClass();
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteClass();
         }
         break;
 
@@ -82,6 +84,8 @@ switch ($resource) {
             ]);
         } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->createSubject();
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteSubject();
         }
         break;
 

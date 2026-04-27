@@ -19,21 +19,34 @@ class AuthController {
         $json = file_get_contents('php://input');
         $data = json_decode($json, true);
 
-        if (!isset($data['email']) || !isset($data['password'])) {
+        $identifier = trim((string) ($data['identifier'] ?? $data['email'] ?? ''));
+        $password = $data['password'] ?? null;
+
+        if ($identifier === '' || !$password) {
             http_response_code(400);
-            echo json_encode(['error' => 'Email and password are required']);
+            echo json_encode(['error' => 'Login ID and password are required']);
             return;
         }
 
-        $email = $data['email'];
-        $password = $data['password'];
+        $isEmailLogin = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
 
-        // Find user by email
-        $user = $this->userModel->findByEmail($email);
+        if ($isEmailLogin) {
+            $user = $this->userModel->findByEmail($identifier);
+            if ($user && ($user['role'] ?? null) === 'student') {
+                http_response_code(401);
+                echo json_encode(['error' => 'Students must sign in using Student ID']);
+                return;
+            }
+        } else {
+            $user = $this->userModel->findByStudentIdentifier($identifier);
+            if ($user && ($user['role'] ?? null) !== 'student') {
+                $user = false;
+            }
+        }
 
         if (!$user) {
             http_response_code(401);
-            echo json_encode(['error' => 'Invalid email or password']);
+            echo json_encode(['error' => 'Invalid login ID or password']);
             return;
         }
 
@@ -57,7 +70,7 @@ class AuthController {
             ]);
         } else {
             http_response_code(401);
-            echo json_encode(['error' => 'Invalid email or password']);
+            echo json_encode(['error' => 'Invalid login ID or password']);
         }
     }
 

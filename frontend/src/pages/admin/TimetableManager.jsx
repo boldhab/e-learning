@@ -99,6 +99,46 @@ const ClassSubjectManager = () => {
     }
   };
 
+  const handleDeleteClass = async (classItem) => {
+    const confirmDelete = window.confirm(
+      `Delete class "${classItem.name}"? This will remove related class assignments and student enrollments for this class.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
+
+    setSubmitting(`delete-class-${classItem.id}`);
+    try {
+      await adminService.deleteClass(classItem.id);
+      showToast('Class deleted successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to delete class', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const handleDeleteSubject = async (subjectItem) => {
+    const confirmDelete = window.confirm(
+      `Delete subject "${subjectItem.name}"? This will remove related teacher assignments for this subject.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
+
+    setSubmitting(`delete-subject-${subjectItem.id}`);
+    try {
+      await adminService.deleteSubject(subjectItem.id);
+      showToast('Subject deleted successfully');
+      await loadAll();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to delete subject', 'error');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
   const handleAssignTeacher = async (e) => {
     e.preventDefault();
     setSubmitting('assign');
@@ -299,7 +339,18 @@ const ClassSubjectManager = () => {
               classes.map(c => (
                 <div key={c.id} className="flex items-center justify-between px-5 py-3.5 bg-indigo-50/50 rounded-2xl group hover:bg-indigo-50 transition-colors">
                   <span className="font-bold text-slate-800">{c.name}</span>
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">ID #{c.id}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">ID #{c.id}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClass(c)}
+                      disabled={submitting === `delete-class-${c.id}`}
+                      className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-white transition-colors disabled:opacity-50"
+                      title="Delete class"
+                    >
+                      {submitting === `delete-class-${c.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -321,7 +372,18 @@ const ClassSubjectManager = () => {
               subjects.map(s => (
                 <div key={s.id} className="flex items-center justify-between px-5 py-3.5 bg-amber-50/50 rounded-2xl group hover:bg-amber-50 transition-colors">
                   <span className="font-bold text-slate-800">{s.name}</span>
-                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">ID #{s.id}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">ID #{s.id}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSubject(s)}
+                      disabled={submitting === `delete-subject-${s.id}`}
+                      className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-white transition-colors disabled:opacity-50"
+                      title="Delete subject"
+                    >
+                      {submitting === `delete-subject-${s.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
