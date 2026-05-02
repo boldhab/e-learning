@@ -171,6 +171,10 @@ switch ($resource) {
             $controller->createChapter();
         } elseif ($id === 'notes' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->addNote();
+        } elseif ($id === 'notes' && $_SERVER['REQUEST_METHOD'] === 'PUT') {
+            $controller->updateNote();
+        } elseif ($id === 'notes' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteNote();
         } elseif ($id === 'materials' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->addMaterial();
         } elseif ($id === 'publish-content' && $_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -31,6 +31,9 @@ const CourseContentEditor = () => {
   
   const [showAddNote, setShowAddNote] = useState(false);
   const [noteContent, setNoteContent] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+  const [noteActionLoading, setNoteActionLoading] = useState('');
   
   const [showAddMaterial, setShowAddMaterial] = useState(false);
   const [materialTitle, setMaterialTitle] = useState('');
@@ -39,6 +42,19 @@ const CourseContentEditor = () => {
   const [materialUrl, setMaterialUrl] = useState('');
   const [materialError, setMaterialError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+
+  const formatPublishedAt = (value) => {
+    if (!value) return null;
+    const date = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   useEffect(() => {
     fetchCourseContent();
@@ -80,6 +96,47 @@ const CourseContentEditor = () => {
       fetchCourseContent();
     } catch (error) {
       alert('Failed to add note');
+    }
+  };
+
+  const startEditNote = (note) => {
+    setShowAddNote(false);
+    setEditingNoteId(note.id);
+    setEditingNoteContent(note.content || '');
+  };
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingNoteContent('');
+  };
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editingNoteContent.trim()) return;
+    try {
+      setNoteActionLoading(`edit-${noteId}`);
+      await contentService.updateNote(noteId, editingNoteContent.trim());
+      cancelEditNote();
+      fetchCourseContent();
+    } catch (error) {
+      alert(error?.response?.data?.error || 'Failed to update note');
+    } finally {
+      setNoteActionLoading('');
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm('Delete this note?')) return;
+    try {
+      setNoteActionLoading(`delete-${noteId}`);
+      await contentService.deleteNote(noteId);
+      if (editingNoteId === noteId) {
+        cancelEditNote();
+      }
+      fetchCourseContent();
+    } catch (error) {
+      alert(error?.response?.data?.error || 'Failed to delete note');
+    } finally {
+      setNoteActionLoading('');
     }
   };
 
@@ -291,12 +348,62 @@ const CourseContentEditor = () => {
                   <div className="space-y-3">
                     {activeChapter.notes.map((note) => (
                       <div key={note.id} className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm group relative">
-                        <div className="prose prose-slate max-w-none">
-                          <p className="text-slate-600 whitespace-pre-wrap">{note.content}</p>
-                        </div>
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>
-                        </div>
+                        {editingNoteId === note.id ? (
+                          <div>
+                            <textarea
+                              rows="6"
+                              autoFocus
+                              className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-slate-700 leading-relaxed outline-none focus:ring-4 focus:ring-primary-500/10"
+                              value={editingNoteContent}
+                              onChange={(e) => setEditingNoteContent(e.target.value)}
+                            />
+                            <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+                              <button
+                                onClick={cancelEditNote}
+                                disabled={noteActionLoading === `edit-${note.id}`}
+                                className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleUpdateNote(note.id)}
+                                disabled={noteActionLoading === `edit-${note.id}` || !editingNoteContent.trim()}
+                                className="px-5 py-2 text-sm font-bold bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-60"
+                              >
+                                {noteActionLoading === `edit-${note.id}` ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Save Changes
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="prose prose-slate max-w-none pr-20">
+                              <p className="text-slate-600 whitespace-pre-wrap">{note.content}</p>
+                            </div>
+                            {formatPublishedAt(note.published_at) && (
+                              <p className="mt-4 text-xs font-bold text-slate-400">
+                                Published {formatPublishedAt(note.published_at)}
+                              </p>
+                            )}
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              <button
+                                onClick={() => startEditNote(note)}
+                                className="p-2 text-slate-300 hover:text-primary-600"
+                                title="Edit note"
+                              >
+                                <FileText size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteNote(note.id)}
+                                disabled={noteActionLoading === `delete-${note.id}`}
+                                className="p-2 text-slate-300 hover:text-red-500 disabled:opacity-60"
+                                title="Delete note"
+                              >
+                                {noteActionLoading === `delete-${note.id}` ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -428,6 +535,11 @@ const CourseContentEditor = () => {
                         <div className="overflow-hidden">
                            <p className="text-sm font-bold text-slate-800 truncate">{m.title}</p>
                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{m.file_type} DOCUMENT</p>
+                           {formatPublishedAt(m.published_at) && (
+                             <p className="text-[10px] text-slate-400 font-bold mt-1">
+                               Published {formatPublishedAt(m.published_at)}
+                             </p>
+                           )}
                         </div>
                       </div>
                       <a href={m.file_url} target="_blank" rel="noreferrer" className="p-2 text-slate-300 hover:text-slate-600 transition-colors">
@@ -442,6 +554,11 @@ const CourseContentEditor = () => {
                         <div className="overflow-hidden">
                            <p className="text-sm font-bold text-slate-800 truncate">{m.title}</p>
                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">EXTERNAL {m.source_type}</p>
+                           {formatPublishedAt(m.published_at) && (
+                             <p className="text-[10px] text-slate-400 font-bold mt-1">
+                               Published {formatPublishedAt(m.published_at)}
+                             </p>
+                           )}
                         </div>
                       </div>
                       <a href={m.url_or_link} target="_blank" rel="noreferrer" className="p-2 text-slate-300 hover:text-slate-600 transition-colors">

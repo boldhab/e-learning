@@ -170,6 +170,95 @@ class TeacherController {
     }
 
     /**
+     * Update a teacher-owned note.
+     */
+    public function updateNote() {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (empty($data['note_id']) || !isset($data['content']) || trim((string)$data['content']) === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Note ID and Content are required']);
+            return;
+        }
+
+        $note = $this->noteModel->findById((int)$data['note_id']);
+        if (!$note) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Note not found']);
+            return;
+        }
+
+        $chapter = $this->chapterModel->findById($note['chapter_id']);
+        if (!$chapter) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Chapter not found']);
+            return;
+        }
+
+        $teacher = $this->verifyTeacher($chapter['course_id']);
+        if (!$teacher || (int)$note['created_by'] !== (int)$teacher['id']) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        $updated = $this->noteModel->update(
+            (int)$data['note_id'],
+            trim((string)$data['content']),
+            array_key_exists('is_published', $data) ? (bool)$data['is_published'] : null
+        );
+
+        if ($updated) {
+            echo json_encode(['status' => 'success', 'message' => 'Note updated successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to update note']);
+        }
+    }
+
+    /**
+     * Delete a teacher-owned note.
+     */
+    public function deleteNote() {
+        $data = json_decode(file_get_contents('php://input'), true) ?: [];
+        $noteId = $data['note_id'] ?? ($_GET['id'] ?? null);
+
+        if (empty($noteId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Note ID is required']);
+            return;
+        }
+
+        $note = $this->noteModel->findById((int)$noteId);
+        if (!$note) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Note not found']);
+            return;
+        }
+
+        $chapter = $this->chapterModel->findById($note['chapter_id']);
+        if (!$chapter) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Chapter not found']);
+            return;
+        }
+
+        $teacher = $this->verifyTeacher($chapter['course_id']);
+        if (!$teacher || (int)$note['created_by'] !== (int)$teacher['id']) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            return;
+        }
+
+        if ($this->noteModel->delete((int)$noteId)) {
+            echo json_encode(['status' => 'success', 'message' => 'Note deleted successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to delete note']);
+        }
+    }
+
+    /**
      * Add material (Learning or Reference) to a chapter
      * Supports both JSON and Multipart Form Data (for file uploads)
      */
@@ -287,7 +376,8 @@ class TeacherController {
         $stmt = $this->db->prepare(
             "UPDATE chapter_notes cn
              JOIN chapters ch ON ch.id = cn.chapter_id
-             SET cn.is_published = 1
+             SET cn.is_published = 1,
+                 cn.published_at = COALESCE(cn.published_at, CURRENT_TIMESTAMP)
              WHERE ch.course_id = :course_id AND cn.created_by = :teacher_id"
         );
 
@@ -296,10 +386,28 @@ class TeacherController {
             'teacher_id' => $teacher['id']
         ]);
 
+        $learningStmt = $this->db->prepare(
+            "UPDATE learning_materials lm
+             JOIN chapters ch ON ch.id = lm.chapter_id
+             SET lm.published_at = COALESCE(lm.published_at, CURRENT_TIMESTAMP)
+             WHERE ch.course_id = :course_id"
+        );
+        $learningStmt->execute(['course_id' => $data['course_id']]);
+
+        $referenceStmt = $this->db->prepare(
+            "UPDATE reference_materials rm
+             JOIN chapters ch ON ch.id = rm.chapter_id
+             SET rm.published_at = COALESCE(rm.published_at, CURRENT_TIMESTAMP)
+             WHERE ch.course_id = :course_id"
+        );
+        $referenceStmt->execute(['course_id' => $data['course_id']]);
+
         echo json_encode([
             'status' => 'success',
             'message' => 'Course content published successfully',
-            'updated_notes' => $stmt->rowCount()
+            'updated_notes' => $stmt->rowCount(),
+            'updated_learning_materials' => $learningStmt->rowCount(),
+            'updated_reference_materials' => $referenceStmt->rowCount()
         ]);
     }
 }

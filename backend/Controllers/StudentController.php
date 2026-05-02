@@ -8,6 +8,7 @@ use Models\AcademicYear;
 use Models\Chapter;
 use Models\ChapterNote;
 use Models\Material;
+use Utils\FileUploader;
 use Core\JwtHandler;
 use PDO;
 
@@ -44,6 +45,49 @@ class StudentController {
         $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
 
         return $basePath . '/Uploads/' . $normalizedPath;
+    }
+
+    private function isRemoteUrl($path) {
+        return (bool) preg_match('#^https?://#i', (string)$path);
+    }
+
+    private function isCloudinaryUrl($path) {
+        return (bool) preg_match('#^https?://res\.cloudinary\.com/#i', (string)$path);
+    }
+
+    private function isLocalUploadUrl($path) {
+        return (bool) preg_match('#^https?://[^/]+/.*/Uploads/#i', (string)$path);
+    }
+
+    private function migrateLearningMaterialToCloudinary($material) {
+        if (empty($material['file_url']) || $this->isCloudinaryUrl($material['file_url'])) {
+            return $material['file_url'] ?? null;
+        }
+
+        if ($this->isRemoteUrl($material['file_url']) && !$this->isLocalUploadUrl($material['file_url'])) {
+            return $material['file_url'];
+        }
+
+        if (!FileUploader::isCloudinaryConfigured()) {
+            return $material['file_url'];
+        }
+
+        $folder = !empty($material['chapter_id'])
+            ? "elearning/chapter_{$material['chapter_id']}"
+            : 'elearning/materials';
+        $cloudinaryUrl = FileUploader::uploadStoredFile($material['file_url'], $folder);
+
+        if (is_array($cloudinaryUrl) && isset($cloudinaryUrl['error'])) {
+            return null;
+        }
+
+        $stmt = $this->db->prepare("UPDATE learning_materials SET file_url = :file_url WHERE id = :id");
+        $stmt->execute([
+            'file_url' => $cloudinaryUrl,
+            'id' => $material['id']
+        ]);
+
+        return $cloudinaryUrl;
     }
 
     /**
@@ -141,6 +185,7 @@ class StudentController {
             $reference = $this->materialModel->getReferenceByChapter($chapter['id']);
 
             $learning = array_map(function ($material) {
+                $material['file_url'] = $this->migrateLearningMaterialToCloudinary($material);
                 $material['file_url'] = $this->buildUploadUrl($material['file_url'] ?? '');
                 return $material;
             }, $learning);

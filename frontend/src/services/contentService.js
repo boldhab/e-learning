@@ -49,6 +49,38 @@ export const contentService = {
   },
 
   /**
+   * Update an existing note
+   */
+  updateNote: async (noteId, content, isPublished = true) => {
+    try {
+      const response = await api.put('/teacher/notes', {
+        note_id: noteId,
+        content,
+        is_published: isPublished
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete an existing note
+   */
+  deleteNote: async (noteId) => {
+    try {
+      const response = await api.delete('/teacher/notes', {
+        data: { note_id: noteId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Add material (Learning or Reference)
    */
   addMaterial: async (chapterId, title, materialData) => {

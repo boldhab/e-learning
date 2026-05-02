@@ -31,7 +31,7 @@ const ClassSubjectManager = () => {
   const [classPage, setClassPage] = useState(1);
   const [subjectPage, setSubjectPage] = useState(1);
   const availableStudents = students.filter((student) => !student.class_id);
-  const subjectTeacherOptions = teachers;
+  const unassignedTeachers = teachers.filter((teacher) => !(teacher.teaching_subject || '').trim());
   const selectedAssignmentSubject = subjects.find((subject) => Number(subject.id) === Number(assignForm.subject_id));
   const assignableTeachers = selectedAssignmentSubject
     ? teachers.filter((teacher) =>
@@ -91,7 +91,10 @@ const ClassSubjectManager = () => {
       setAssignments(asgns);
       setActiveYear(yearsData?.active_year || null);
       setSelectedSubjectTeacherIds((currentIds) => {
-        const availableIds = new Set(tchs.map((teacher) => Number(teacher.id)));
+        const availableIds = new Set(tchs
+          .filter((teacher) => !(teacher.teaching_subject || '').trim())
+          .map((teacher) => Number(teacher.id))
+        );
         return currentIds.filter((id) => availableIds.has(Number(id)));
       });
       setSelectedClassId((currentClassId) => (
@@ -478,8 +481,8 @@ const ClassSubjectManager = () => {
               </span>
             </div>
             <div className="max-h-40 overflow-y-auto rounded-2xl bg-slate-50 p-3 space-y-2">
-              {subjectTeacherOptions.length > 0 ? (
-                subjectTeacherOptions.map((teacher) => {
+              {unassignedTeachers.length > 0 ? (
+                unassignedTeachers.map((teacher) => {
                   const checked = selectedSubjectTeacherIds.includes(teacher.id);
                   return (
                     <label
@@ -503,7 +506,7 @@ const ClassSubjectManager = () => {
                 })
               ) : (
                 <p className="px-3 py-6 text-sm text-slate-400 text-center font-medium">
-                  No teachers available. Create a teacher account first.
+                  No unassigned teachers available. Remove a teacher from another subject or create a new teacher account.
                 </p>
               )}
             </div>

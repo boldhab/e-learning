@@ -20,6 +20,13 @@ const getDueInfo = (dueDate) => {
   return { text: `${diff} days left`, cls: 'text-slate-500' };
 };
 
+const getDownloadUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+
+  return '';
+};
+
 const StudentAssignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,12 +188,16 @@ const StudentAssignments = () => {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  {a.attachment_url && (
-                    <a href={a.attachment_url} target="_blank" rel="noreferrer"
+                  {getDownloadUrl(a.attachment_url) ? (
+                    <a href={getDownloadUrl(a.attachment_url)} target="_blank" rel="noreferrer" download
                       className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
                       <Download size={16} /> Reference
                     </a>
-                  )}
+                  ) : a.attachment_url ? (
+                    <span className="flex items-center gap-2 text-sm font-bold text-amber-600 px-4 py-2 rounded-xl border border-amber-100 bg-amber-50">
+                      <Download size={16} /> Reference unavailable
+                    </span>
+                  ) : null}
                   {status === 'pending' && (
                     <button
                       onClick={() => { setSelected(a); setSelectedFile(null); setNotes(''); }}

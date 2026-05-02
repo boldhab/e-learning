@@ -7,17 +7,34 @@ use PDO;
 
 class Material {
     private $db;
+    private static $publishedAtColumnsChecked = false;
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
+        $this->ensurePublishedAtColumns();
+    }
+
+    private function ensurePublishedAtColumns() {
+        if (self::$publishedAtColumnsChecked) {
+            return;
+        }
+
+        foreach (['learning_materials', 'reference_materials'] as $table) {
+            $stmt = $this->db->query("SHOW COLUMNS FROM " . $table . " LIKE 'published_at'");
+            if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+                $this->db->exec("ALTER TABLE " . $table . " ADD COLUMN published_at TIMESTAMP NULL DEFAULT NULL");
+            }
+        }
+
+        self::$publishedAtColumnsChecked = true;
     }
 
     /**
      * Create a learning material record
      */
     public function createLearning($chapterId, $title, $fileUrl, $fileType, $description = '') {
-        $sql = "INSERT INTO learning_materials (chapter_id, title, file_url, file_type, description) 
-                VALUES (:chapter_id, :title, :file_url, :file_type, :description)";
+        $sql = "INSERT INTO learning_materials (chapter_id, title, file_url, file_type, description, published_at)
+                VALUES (:chapter_id, :title, :file_url, :file_type, :description, CURRENT_TIMESTAMP)";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             'chapter_id' => $chapterId,
@@ -32,8 +49,8 @@ class Material {
      * Create a reference material record
      */
     public function createReference($chapterId, $title, $sourceType, $urlOrLink) {
-        $sql = "INSERT INTO reference_materials (chapter_id, title, source_type, file_url_or_link) 
-                VALUES (:chapter_id, :title, :source_type, :url_or_link)";
+        $sql = "INSERT INTO reference_materials (chapter_id, title, source_type, file_url_or_link, published_at)
+                VALUES (:chapter_id, :title, :source_type, :url_or_link, CURRENT_TIMESTAMP)";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             'chapter_id' => $chapterId,

@@ -18,6 +18,19 @@ const CourseViewer = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isTeacherPreview = location.pathname.startsWith('/teacher/course/');
 
+  const formatPublishedAt = (value) => {
+    if (!value) return null;
+    const date = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   useEffect(() => {
     const fetchContent = async () => {
       try {
@@ -168,6 +181,11 @@ const CourseViewer = () => {
                           {note.author_name && (
                             <p className="text-[12px] text-slate-400 font-medium mt-1">Published by {note.author_name}</p>
                           )}
+                          {formatPublishedAt(note.published_at) && (
+                            <p className="text-[12px] text-slate-400 font-medium mt-1">
+                              Published {formatPublishedAt(note.published_at)}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div 
@@ -186,7 +204,7 @@ const CourseViewer = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activeChapter?.learning_materials.length > 0 ? (
                   activeChapter.learning_materials.map((mat, idx) => (
-                    <MaterialCard key={idx} material={mat} />
+                    <MaterialCard key={idx} material={mat} formatPublishedAt={formatPublishedAt} />
                   ))
                 ) : (
                   <div className="col-span-full">
@@ -214,6 +232,11 @@ const CourseViewer = () => {
                         <div>
                           <p className="font-bold text-slate-900">{ref.title}</p>
                           <p className="text-xs text-slate-400 font-medium">External Reference Resource</p>
+                          {formatPublishedAt(ref.published_at) && (
+                            <p className="text-xs text-slate-400 font-medium mt-1">
+                              Published {formatPublishedAt(ref.published_at)}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <ChevronRight size={20} className="text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
@@ -231,7 +254,7 @@ const CourseViewer = () => {
   );
 };
 
-const MaterialCard = ({ material }) => (
+const MaterialCard = ({ material, formatPublishedAt }) => (
   <div className="bg-white p-7 rounded-[2.5rem] border border-slate-100 flex flex-col h-full hover:shadow-xl transition-all group">
     <div className="flex items-start justify-between mb-6">
       <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
@@ -242,6 +265,11 @@ const MaterialCard = ({ material }) => (
       </span>
     </div>
     <h4 className="text-lg font-black text-slate-900 mb-2 leading-tight">{material.title}</h4>
+    {formatPublishedAt(material.published_at) && (
+      <p className="text-xs text-slate-400 font-bold mb-3">
+        Published {formatPublishedAt(material.published_at)}
+      </p>
+    )}
     <p className="text-sm text-slate-500 line-clamp-2 mb-8 flex-1">{material.description || 'Supplementary resource for deeper understanding.'}</p>
     <a 
       href={material.file_url} 

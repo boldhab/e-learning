@@ -20,6 +20,114 @@ class AssignmentController {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    private function buildUploadUrl($path) {
+        if (!$path) {
+            return $path;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+
+        return $basePath . '/Uploads/' . $normalizedPath;
+    }
+
+    private function isRemoteUrl($path) {
+        return (bool) preg_match('#^https?://#i', (string)$path);
+    }
+
+    private function isCloudinaryUrl($path) {
+        return (bool) preg_match('#^https?://res\.cloudinary\.com/#i', (string)$path);
+    }
+
+    private function isLocalUploadUrl($path) {
+        return (bool) preg_match('#^https?://[^/]+/.*/Uploads/#i', (string)$path);
+    }
+
+    private function migrateAssignmentAttachmentToCloudinary($assignment) {
+        if (empty($assignment['attachment_url']) || $this->isCloudinaryUrl($assignment['attachment_url'])) {
+            return $assignment['attachment_url'] ?? null;
+        }
+
+        if ($this->isRemoteUrl($assignment['attachment_url']) && !$this->isLocalUploadUrl($assignment['attachment_url'])) {
+            return $assignment['attachment_url'];
+        }
+
+        if (!FileUploader::isCloudinaryConfigured()) {
+            return $assignment['attachment_url'];
+        }
+
+        $courseId = $assignment['course_id'] ?? null;
+        $folder = $courseId ? "assignments/course_{$courseId}" : 'assignments';
+        $cloudinaryUrl = FileUploader::uploadStoredFile($assignment['attachment_url'], $folder);
+
+        if (is_array($cloudinaryUrl) && isset($cloudinaryUrl['error'])) {
+            return null;
+        }
+
+        $stmt = $this->db->prepare("UPDATE task_assignments SET attachment_url = :attachment_url WHERE id = :id");
+        $stmt->execute([
+            'attachment_url' => $cloudinaryUrl,
+            'id' => $assignment['id']
+        ]);
+
+        return $cloudinaryUrl;
+    }
+
+    private function migrateSubmissionFileToCloudinary($submission) {
+        if (empty($submission['file_url']) || $this->isCloudinaryUrl($submission['file_url'])) {
+            return $submission['file_url'] ?? null;
+        }
+
+        if ($this->isRemoteUrl($submission['file_url']) && !$this->isLocalUploadUrl($submission['file_url'])) {
+            return $submission['file_url'];
+        }
+
+        if (!FileUploader::isCloudinaryConfigured()) {
+            return $submission['file_url'];
+        }
+
+        $assignmentId = $submission['assignment_id'] ?? null;
+        $folder = $assignmentId ? "submissions/assignment_{$assignmentId}" : 'submissions';
+        $cloudinaryUrl = FileUploader::uploadStoredFile($submission['file_url'], $folder);
+
+        if (is_array($cloudinaryUrl) && isset($cloudinaryUrl['error'])) {
+            return null;
+        }
+
+        $stmt = $this->db->prepare("UPDATE task_submissions SET file_url = :file_url WHERE id = :id");
+        $stmt->execute([
+            'file_url' => $cloudinaryUrl,
+            'id' => $submission['id']
+        ]);
+
+        return $cloudinaryUrl;
+    }
+
+    private function normalizeAssignmentFiles($assignments) {
+        return array_map(function ($assignment) {
+            if (!empty($assignment['attachment_url'])) {
+                $assignment['attachment_url'] = $this->migrateAssignmentAttachmentToCloudinary($assignment);
+                $assignment['attachment_url'] = $this->buildUploadUrl($assignment['attachment_url']);
+            }
+            return $assignment;
+        }, $assignments);
+    }
+
+    private function normalizeSubmissionFiles($submissions) {
+        return array_map(function ($submission) {
+            if (!empty($submission['file_url'])) {
+                $submission['file_url'] = $this->migrateSubmissionFileToCloudinary($submission);
+                $submission['file_url'] = $this->buildUploadUrl($submission['file_url']);
+            }
+            return $submission;
+        }, $submissions);
+    }
+
     /**
      * Decode and validate the JWT token, returning payload or sending 401/403
      */
@@ -107,7 +215,11 @@ class AssignmentController {
         );
 
         if ($result) {
-            echo json_encode(['status' => 'success', 'assignment_id' => $result]);
+            echo json_encode([
+                'status' => 'success',
+                'assignment_id' => $result,
+                'attachment_url' => $this->buildUploadUrl($attachmentUrl)
+            ]);
         } else {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create assignment']);
@@ -122,6 +234,7 @@ class AssignmentController {
         if (!$teacher) return;
 
         $assignments = $this->assignmentModel->getByTeacher($teacher['id']);
+        $assignments = $this->normalizeAssignmentFiles($assignments);
         echo json_encode(['status' => 'success', 'assignments' => $assignments]);
     }
 
@@ -148,6 +261,7 @@ class AssignmentController {
         }
 
         $submissions = $this->submissionModel->getByAssignment($assignmentId);
+        $submissions = $this->normalizeSubmissionFiles($submissions);
         echo json_encode(['status' => 'success', 'submissions' => $submissions]);
     }
 
@@ -228,6 +342,7 @@ class AssignmentController {
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['teacher_id' => $teacher['id']]);
         $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $submissions = $this->normalizeSubmissionFiles($submissions);
 
         echo json_encode(['status' => 'success', 'submissions' => $submissions]);
     }
@@ -242,6 +357,7 @@ class AssignmentController {
         if (!$student) return;
 
         $assignments = $this->assignmentModel->getForStudent($student['id']);
+        $assignments = $this->normalizeAssignmentFiles($assignments);
         echo json_encode(['status' => 'success', 'assignments' => $assignments]);
     }
 
@@ -289,7 +405,11 @@ class AssignmentController {
         );
 
         if ($result) {
-            echo json_encode(['status' => 'success', 'message' => 'Assignment submitted successfully', 'file_url' => $uploadResult]);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Assignment submitted successfully',
+                'file_url' => $this->buildUploadUrl($uploadResult)
+            ]);
         } else {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to submit assignment']);

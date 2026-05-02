@@ -41,13 +41,21 @@ class CloudinaryUploader {
      * @param string $tmpPath    The temporary file path (e.g. from $_FILES['file']['tmp_name'])
      * @param string $folder     Optional Cloudinary folder (e.g. "course_1/chapter_2")
      * @param string $publicId   Optional custom public ID (filename without extension)
+     * @param string $originalName Optional original filename for Cloudinary MIME/type handling
      * @return array ['secure_url' => '...', 'public_id' => '...'] on success
      *               ['error' => '...'] on failure
      */
-    public static function upload($tmpPath, $folder = '', $publicId = '') {
+    public static function upload($tmpPath, $folder = '', $publicId = '', $originalName = '') {
         $cloudName = self::resolveCloudName();
         $apiKey    = \Config\Config::get('CLOUDINARY_API_KEY');
         $apiSecret = \Config\Config::get('CLOUDINARY_API_SECRET');
+
+        $cloudinaryUrl = \Config\Config::get('CLOUDINARY_URL', '');
+        if ((!$apiKey || !$apiSecret) && !empty($cloudinaryUrl)) {
+            $parts = parse_url($cloudinaryUrl);
+            $apiKey = $apiKey ?: ($parts['user'] ?? '');
+            $apiSecret = $apiSecret ?: ($parts['pass'] ?? '');
+        }
 
         if (!$cloudName || !$apiKey || !$apiSecret) {
             return ['error' => 'Cloudinary credentials are not configured in .env'];
@@ -86,8 +94,9 @@ class CloudinaryUploader {
             ];
         }
 
+        $mimeType = function_exists('mime_content_type') ? (mime_content_type($tmpPath) ?: 'application/octet-stream') : 'application/octet-stream';
         $postFields = [
-            'file'      => new \CURLFile($tmpPath),
+            'file'      => new \CURLFile($tmpPath, $mimeType, $originalName ?: basename($tmpPath)),
             'api_key'   => $apiKey,
             'timestamp' => $timestamp,
             'signature' => $signature,
