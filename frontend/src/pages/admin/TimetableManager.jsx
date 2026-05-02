@@ -11,6 +11,7 @@ const ClassSubjectManager = () => {
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [activeYear, setActiveYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null); // { msg, type }
 
@@ -30,7 +31,7 @@ const ClassSubjectManager = () => {
   const [classPage, setClassPage] = useState(1);
   const [subjectPage, setSubjectPage] = useState(1);
   const availableStudents = students.filter((student) => !student.class_id);
-  const unassignedTeachers = teachers.filter((teacher) => !(teacher.teaching_subject || '').trim());
+  const subjectTeacherOptions = teachers;
   const selectedAssignmentSubject = subjects.find((subject) => Number(subject.id) === Number(assignForm.subject_id));
   const assignableTeachers = selectedAssignmentSubject
     ? teachers.filter((teacher) =>
@@ -75,23 +76,22 @@ const ClassSubjectManager = () => {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [cls, subs, tchs, stds, asgns] = await Promise.all([
+      const [cls, subs, tchs, stds, asgns, yearsData] = await Promise.all([
         adminService.getClasses(),
         adminService.getSubjects(),
         adminService.getUsers('teacher'),
         adminService.getUsers('student'),
         adminService.getAssignments(),
+        adminService.getYears(),
       ]);
       setClasses(cls);
       setSubjects(subs);
       setTeachers(tchs);
       setStudents(stds);
       setAssignments(asgns);
+      setActiveYear(yearsData?.active_year || null);
       setSelectedSubjectTeacherIds((currentIds) => {
-        const availableIds = new Set(tchs
-          .filter((teacher) => !(teacher.teaching_subject || '').trim())
-          .map((teacher) => Number(teacher.id))
-        );
+        const availableIds = new Set(tchs.map((teacher) => Number(teacher.id)));
         return currentIds.filter((id) => availableIds.has(Number(id)));
       });
       setSelectedClassId((currentClassId) => (
@@ -127,6 +127,10 @@ const ClassSubjectManager = () => {
 
   const handleCreateClass = async (e) => {
     e.preventDefault();
+    if (!activeYear) {
+      showToast('Set an active academic year before creating a class', 'error');
+      return;
+    }
     if (!className.trim()) return;
     if (selectedStudentIds.length === 0) {
       showToast('Select at least one student for the new class', 'error');
@@ -162,6 +166,10 @@ const ClassSubjectManager = () => {
 
   const handleCreateSubject = async (e) => {
     e.preventDefault();
+    if (!activeYear) {
+      showToast('Set an active academic year before creating a subject', 'error');
+      return;
+    }
     if (!subjectName.trim()) return;
     setSubmitting('subject');
     try {
@@ -367,6 +375,12 @@ const ClassSubjectManager = () => {
         <p className="text-slate-500 mt-2 font-medium">Create classes with students already assigned, define subjects, and connect teachers to their designated sections.</p>
       </div>
 
+      {!loading && !activeYear && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
+          Set an active academic year before creating classes or subjects.
+        </div>
+      )}
+
       {/* 3 Action Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -430,7 +444,7 @@ const ClassSubjectManager = () => {
           </div>
           <button
             type="submit"
-            disabled={submitting === 'class' || availableStudents.length === 0}
+            disabled={submitting === 'class' || availableStudents.length === 0 || !activeYear}
             className="mt-auto w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {submitting === 'class' ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
@@ -464,8 +478,8 @@ const ClassSubjectManager = () => {
               </span>
             </div>
             <div className="max-h-40 overflow-y-auto rounded-2xl bg-slate-50 p-3 space-y-2">
-              {unassignedTeachers.length > 0 ? (
-                unassignedTeachers.map((teacher) => {
+              {subjectTeacherOptions.length > 0 ? (
+                subjectTeacherOptions.map((teacher) => {
                   const checked = selectedSubjectTeacherIds.includes(teacher.id);
                   return (
                     <label
@@ -489,14 +503,14 @@ const ClassSubjectManager = () => {
                 })
               ) : (
                 <p className="px-3 py-6 text-sm text-slate-400 text-center font-medium">
-                  No unassigned teachers available. Remove a teacher from another subject or create a new teacher account.
+                  No teachers available. Create a teacher account first.
                 </p>
               )}
             </div>
           </div>
           <button
             type="submit"
-            disabled={submitting === 'subject'}
+            disabled={submitting === 'subject' || !activeYear}
             className="mt-auto w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-amber-200 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {submitting === 'subject' ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}

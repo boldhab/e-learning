@@ -192,7 +192,7 @@ class AdminController {
 
         $activeYear = $this->yearModel->getActiveYear();
         if (!$activeYear) {
-            http_response_code(500);
+            http_response_code(400);
             echo json_encode(['error' => 'No active academic year found. Please create one first.']);
             return;
         }
@@ -261,6 +261,13 @@ class AdminController {
         if (empty($data['name'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Subject name is required']);
+            return;
+        }
+
+        $activeYear = $this->yearModel->getActiveYear();
+        if (!$activeYear) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No active academic year found. Please create one first.']);
             return;
         }
 

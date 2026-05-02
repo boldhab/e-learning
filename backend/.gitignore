@@ -1,0 +1,25 @@
+# Ignore environment files
+.env
+.env.local
+.env.*.local
+
+# Uploads (user uploaded files)
+/Uploads/
+
+# Composer vendor (local dependencies)
+/vendor/
+
+# Logs and runtime files
+*.log
+request.log
+
+# IDE/editor directories
+/.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# PHPStorm
+/.phpunit.result.cache
