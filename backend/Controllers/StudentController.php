@@ -31,6 +31,29 @@ class StudentController {
         $this->db = \Core\Database::getInstance()->getConnection();
     }
 
+    /**
+     * Resolve Authorization header across SAPIs and header casing differences.
+     */
+    private function getAuthorizationHeader() {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+
+        foreach ($headers as $key => $value) {
+            if (strcasecmp($key, 'Authorization') === 0) {
+                return $value;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            return $_SERVER['HTTP_AUTHORIZATION'];
+        }
+
+        if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        return '';
+    }
+
     private function buildUploadUrl($path) {
         if (!$path) {
             return $path;
@@ -95,8 +118,7 @@ class StudentController {
      */
     public function getSchedule() {
         // 1. Verify Authorization
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $this->getAuthorizationHeader();
         
         if (strpos($authHeader, 'Bearer ') !== 0) {
             http_response_code(401);
@@ -218,8 +240,7 @@ class StudentController {
      * Get all graded assignments for the student
      */
     public function getGrades() {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $this->getAuthorizationHeader();
         
         if (strpos($authHeader, 'Bearer ') !== 0) {
             http_response_code(401);

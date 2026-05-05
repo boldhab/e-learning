@@ -26,11 +26,33 @@ class TeacherController {
     }
 
     /**
+     * Resolve Authorization header across SAPIs and header casing differences.
+     */
+    private function getAuthorizationHeader() {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+
+        foreach ($headers as $key => $value) {
+            if (strcasecmp($key, 'Authorization') === 0) {
+                return $value;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            return $_SERVER['HTTP_AUTHORIZATION'];
+        }
+
+        if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        return '';
+    }
+
+    /**
      * Get all courses assigned to the logged-in teacher
      */
     public function getMyCourses() {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $this->getAuthorizationHeader();
         
         if (strpos($authHeader, 'Bearer ') !== 0) {
             http_response_code(401);
@@ -80,8 +102,7 @@ class TeacherController {
      * Verify if the request is from an authorized Teacher for the specific course
      */
     private function verifyTeacher($courseId) {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $this->getAuthorizationHeader();
         
         if (strpos($authHeader, 'Bearer ') !== 0) {
             return false;
