@@ -57,7 +57,12 @@ const TeacherAssignments = () => {
       showToast('Assignment created successfully');
       await load();
     } catch (err) {
-      showToast(err?.response?.data?.error || 'Failed to create assignment', 'error');
+      console.error('Assignment create failed:', {
+        error: err?.response?.data?.error,
+        details: err?.response?.data?.details,
+        status: err?.response?.status,
+      });
+      showToast(err?.response?.data?.details || err?.response?.data?.error || 'Failed to create assignment', 'error');
     } finally {
       setSubmitting(false);
     }

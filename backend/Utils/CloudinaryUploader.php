@@ -4,12 +4,11 @@ namespace Utils;
 
 /**
  * CloudinaryUploader
- * 
+ *
  * Uploads files to Cloudinary using the REST API (no SDK / Composer required).
  * Credentials are read from environment variables set by the .env loader in index.php.
  */
 class CloudinaryUploader {
-
     /**
      * Resolve Cloudinary cloud name from common env keys and CLOUDINARY_URL.
      */
@@ -38,16 +37,15 @@ class CloudinaryUploader {
     /**
      * Upload a file from a temp path to Cloudinary.
      *
-     * @param string $tmpPath    The temporary file path (e.g. from $_FILES['file']['tmp_name'])
-     * @param string $folder     Optional Cloudinary folder (e.g. "course_1/chapter_2")
-     * @param string $publicId   Optional custom public ID (filename without extension)
-     * @param string $originalName Optional original filename for Cloudinary MIME/type handling
-     * @return array ['secure_url' => '...', 'public_id' => '...'] on success
-     *               ['error' => '...'] on failure
+     * @param string $tmpPath The temporary file path.
+     * @param string $folder Optional Cloudinary folder.
+     * @param string $publicId Optional custom public ID.
+     * @param string $originalName Optional original filename.
+     * @return array
      */
     public static function upload($tmpPath, $folder = '', $publicId = '', $originalName = '') {
         $cloudName = self::resolveCloudName();
-        $apiKey    = \Config\Config::get('CLOUDINARY_API_KEY');
+        $apiKey = \Config\Config::get('CLOUDINARY_API_KEY');
         $apiSecret = \Config\Config::get('CLOUDINARY_API_SECRET');
 
         $cloudinaryUrl = \Config\Config::get('CLOUDINARY_URL', '');
@@ -62,26 +60,24 @@ class CloudinaryUploader {
         }
 
         $timestamp = time();
-
-        // Build signature params — must be sorted alphabetically
         $sigParams = ['timestamp' => $timestamp];
-        if ($folder)   $sigParams['folder']    = $folder;
-        if ($publicId) $sigParams['public_id'] = $publicId;
+        if ($folder) {
+            $sigParams['folder'] = $folder;
+        }
+        if ($publicId) {
+            $sigParams['public_id'] = $publicId;
+        }
 
         ksort($sigParams);
 
-        // Cloudinary expects signature params joined as raw key=value pairs (not URL-encoded).
         $pairs = [];
         foreach ($sigParams as $key => $value) {
             $pairs[] = $key . '=' . $value;
         }
 
-        // Build signature string: "folder=x&public_id=y&timestamp=z{API_SECRET}"
         $sigString = implode('&', $pairs) . $apiSecret;
         $signature = sha1($sigString);
 
-        // POST to Cloudinary auto-upload endpoint (handles PDF, images, video, etc.)
-        // Some accounts are region-scoped and require api-eu/api-ap endpoints.
         $configuredPrefix = trim((string) \Config\Config::get('CLOUDINARY_UPLOAD_PREFIX', ''));
         $uploadPrefixes = [];
         if (!empty($configuredPrefix)) {
@@ -94,16 +90,23 @@ class CloudinaryUploader {
             ];
         }
 
-        $mimeType = function_exists('mime_content_type') ? (mime_content_type($tmpPath) ?: 'application/octet-stream') : 'application/octet-stream';
+        $mimeType = function_exists('mime_content_type')
+            ? (mime_content_type($tmpPath) ?: 'application/octet-stream')
+            : 'application/octet-stream';
+
         $postFields = [
-            'file'      => new \CURLFile($tmpPath, $mimeType, $originalName ?: basename($tmpPath)),
-            'api_key'   => $apiKey,
+            'file' => new \CURLFile($tmpPath, $mimeType, $originalName ?: basename($tmpPath)),
+            'api_key' => $apiKey,
             'timestamp' => $timestamp,
             'signature' => $signature,
         ];
 
-        if ($folder)   $postFields['folder']    = $folder;
-        if ($publicId) $postFields['public_id'] = $publicId;
+        if ($folder) {
+            $postFields['folder'] = $folder;
+        }
+        if ($publicId) {
+            $postFields['public_id'] = $publicId;
+        }
 
         $lastError = '';
         foreach ($uploadPrefixes as $prefix) {
@@ -111,11 +114,11 @@ class CloudinaryUploader {
 
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL            => $uploadUrl,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => $postFields,
+                CURLOPT_URL => $uploadUrl,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $postFields,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 120,
+                CURLOPT_TIMEOUT => 120,
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
@@ -133,25 +136,23 @@ class CloudinaryUploader {
             if ($httpCode === 200 && !isset($data['error'])) {
                 return [
                     'secure_url' => $data['secure_url'],
-                    'public_id'  => $data['public_id'],
+                    'public_id' => $data['public_id'],
                 ];
             }
 
             $msg = $data['error']['message'] ?? ('Cloudinary upload failed (HTTP ' . $httpCode . ')');
             $lastError = $msg;
 
-            // Try next region endpoint when cloud is not found at current host.
             if (stripos($msg, 'Invalid cloud_name') !== false) {
                 continue;
             }
 
-            // For non-region errors (signature, auth, etc.), stop early.
             return ['error' => $msg];
         }
 
         if (stripos($lastError, 'Invalid cloud_name') !== false) {
             return [
-                'error' => 'Invalid Cloudinary cloud name or region endpoint. Confirm CLOUDINARY_CLOUD_NAME and set CLOUDINARY_UPLOAD_PREFIX in backend/.env (e.g. https://api-eu.cloudinary.com or https://api-ap.cloudinary.com).'
+                'error' => 'Invalid Cloudinary cloud name or region endpoint. Confirm CLOUDINARY_CLOUD_NAME and set CLOUDINARY_UPLOAD_PREFIX in backend/.env (for example https://api-eu.cloudinary.com or https://api-ap.cloudinary.com).'
             ];
         }
 

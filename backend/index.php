@@ -226,6 +226,16 @@ switch ($resource) {
         }
         break;
 
+    case 'debug':
+        $controller = new \Controllers\DebugController();
+        if ($id === 'cloudinary-upload') {
+            $controller->testCloudinaryUpload();
+        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'Debug action not found']);
+        }
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Resource not found: ' . $resource]);

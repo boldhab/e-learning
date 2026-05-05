@@ -23,7 +23,7 @@ class FileUploader {
      *
      * @param array  $file      The element from $_FILES
      * @param string $subFolder Optional Cloudinary folder (e.g. "course_1/chapter_2")
-     * @return string|array  The Cloudinary secure_url on success, or ['error' => '...'] on failure
+     * @return string|array The Cloudinary secure URL on success, or ['error' => '...'] on failure
      */
     public static function upload($file, $subFolder = '') {
         // 1. Basic checks
@@ -50,7 +50,6 @@ class FileUploader {
 
         // 5. Upload to Cloudinary
         if (self::hasCloudinaryConfig()) {
-            // Determine the Cloudinary folder (separate from public_id prefix)
             $folder = $subFolder ? trim($subFolder, '/') : '';
             $result = CloudinaryUploader::upload($file['tmp_name'], $folder, $publicId, $filename);
 
@@ -58,7 +57,6 @@ class FileUploader {
                 return $result;
             }
 
-            // Return the full Cloudinary secure URL
             if (isset($result['secure_url'])) {
                 return $result['secure_url'];
             }
@@ -87,7 +85,7 @@ class FileUploader {
      *
      * @param string $relativePath Path stored in DB, relative to Uploads/.
      * @param string $subFolder Optional Cloudinary folder.
-     * @return string|array Cloudinary secure_url on success, or ['error' => '...'].
+     * @return string|array Cloudinary secure URL on success, or ['error' => '...'].
      */
     public static function uploadStoredFile($relativePath, $subFolder = '') {
         if (!self::hasCloudinaryConfig()) {
@@ -118,7 +116,7 @@ class FileUploader {
         $publicId = uniqid() . '_' . $safeBaseName;
         $folder = $subFolder ? trim($subFolder, '/') : trim(dirname($normalizedPath), './\\');
 
-        $result = CloudinaryUploader::upload($absolutePath, $folder, $publicId);
+        $result = CloudinaryUploader::upload($absolutePath, $folder, $publicId, basename($absolutePath));
         if (isset($result['error'])) {
             return $result;
         }

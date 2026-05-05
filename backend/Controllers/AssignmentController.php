@@ -198,7 +198,10 @@ class AssignmentController {
             $uploadResult = FileUploader::upload($_FILES['file'], $subFolder);
             if (is_array($uploadResult) && isset($uploadResult['error'])) {
                 http_response_code(400);
-                echo json_encode(['error' => $uploadResult['error']]);
+                echo json_encode([
+                    'error' => 'Assignment document upload failed',
+                    'details' => $uploadResult['error']
+                ]);
                 return;
             }
             $attachmentUrl = $uploadResult;
@@ -393,7 +396,10 @@ class AssignmentController {
         $uploadResult = FileUploader::upload($_FILES['file'], $subFolder);
         if (is_array($uploadResult) && isset($uploadResult['error'])) {
             http_response_code(400);
-            echo json_encode(['error' => $uploadResult['error']]);
+            echo json_encode([
+                'error' => 'Submission upload failed',
+                'details' => $uploadResult['error']
+            ]);
             return;
         }
 
