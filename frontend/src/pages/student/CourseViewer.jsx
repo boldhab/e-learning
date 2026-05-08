@@ -6,6 +6,7 @@ import {
   Menu, X, Loader2, ArrowLeft, PlayCircle
 } from 'lucide-react';
 import studentService from '../../services/studentService';
+import { getDownloadableFileUrl } from '../../utils/fileUrl';
 
 const CourseViewer = () => {
   const { courseId } = useParams();
@@ -272,8 +273,7 @@ const MaterialCard = ({ material, formatPublishedAt }) => (
     )}
     <p className="text-sm text-slate-500 line-clamp-2 mb-8 flex-1">{material.description || 'Supplementary resource for deeper understanding.'}</p>
     <a 
-      href={material.file_url} 
-      target="_blank" 
+      href={getDownloadableFileUrl(material.file_url)}
       rel="noreferrer"
       className="flex items-center justify-center gap-2 w-full py-4 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-slate-100"
     >

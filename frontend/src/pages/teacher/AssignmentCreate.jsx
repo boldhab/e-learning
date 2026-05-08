@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import assignmentService from '../../services/assignmentService';
 import teacherService from '../../services/teacherService';
+import { getDownloadableFileUrl } from '../../utils/fileUrl';
 
 const TeacherAssignments = () => {
   const [assignments, setAssignments] = useState([]);
@@ -312,7 +313,7 @@ const TeacherAssignments = () => {
                     </div>
                     {s.notes && <p className="text-sm text-slate-600 italic">"{s.notes}"</p>}
                     <div className="flex items-center justify-between gap-3">
-                      <a href={s.file_url} target="_blank" rel="noreferrer"
+                      <a href={getDownloadableFileUrl(s.file_url)} rel="noreferrer"
                         className="text-xs font-bold text-primary-600 hover:underline flex items-center gap-1">
                         <FileText size={14} /> Open Document
                       </a>

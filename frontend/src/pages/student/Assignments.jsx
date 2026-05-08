@@ -4,6 +4,7 @@ import {
   Filter, Search, X, Calendar, Loader2, UploadCloud
 } from 'lucide-react';
 import assignmentService from '../../services/assignmentService';
+import { getDownloadableFileUrl } from '../../utils/fileUrl';
 
 const statusConfig = {
   null: { label: 'Pending', bgClass: 'bg-amber-50', textClass: 'text-amber-700', borderClass: 'border-amber-100', Icon: AlertCircle, iconCls: 'text-amber-500' },
@@ -18,13 +19,6 @@ const getDueInfo = (dueDate) => {
   if (diff === 0) return { text: 'Due today', cls: 'text-amber-600' };
   if (diff === 1) return { text: 'Due tomorrow', cls: 'text-amber-600' };
   return { text: `${diff} days left`, cls: 'text-slate-500' };
-};
-
-const getDownloadUrl = (url) => {
-  if (!url) return '';
-  if (/^https?:\/\//i.test(url)) return url;
-
-  return '';
 };
 
 const StudentAssignments = () => {
@@ -188,8 +182,8 @@ const StudentAssignments = () => {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  {getDownloadUrl(a.attachment_url) ? (
-                    <a href={getDownloadUrl(a.attachment_url)} target="_blank" rel="noreferrer" download
+                  {getDownloadableFileUrl(a.attachment_url) ? (
+                    <a href={getDownloadableFileUrl(a.attachment_url)} rel="noreferrer"
                       className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
                       <Download size={16} /> Reference
                     </a>
