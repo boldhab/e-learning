@@ -14,6 +14,9 @@ import UserManagement from '../pages/admin/UserManagement';
 import HelpCenter from '../pages/common/HelpCenter';
 import Notifications from '../pages/common/Notifications';
 import Profile from '../pages/common/Profile';
+import Discussions from '../pages/common/Discussions';
+import DiscussionDetail from '../pages/common/DiscussionDetail';
+import PrivateChat from '../pages/common/PrivateChat';
 import NotFound from '../pages/errors/NotFound';
 import Unauthorized from '../pages/errors/Unauthorized';
 import Assignments from '../pages/student/Assignments';
@@ -24,8 +27,9 @@ import MyLearning from '../pages/student/MyLearning';
 import CourseViewer from '../pages/student/CourseViewer';
 import CourseContentEditor from '../pages/teacher/CourseContentEditor';
 import TeacherAssignments from '../pages/teacher/AssignmentCreate';
-import ForumManage from '../pages/teacher/ForumManage';
 import GradingView from '../pages/teacher/GradingView';
+import TeacherCourseWorkspace from '../pages/teacher/TeacherCourseWorkspace';
+import TeacherDiscussionHub from '../pages/teacher/TeacherDiscussionHub';
 import TeacherDashboard from '../pages/teacher/TeacherDashboard';
 
 const RoleDashboard = () => {
@@ -61,6 +65,14 @@ export const AppRoutes = () => (
     >
       <Route index element={<Navigate to="/dashboard" replace />} />
       <Route path="dashboard" element={<RoleDashboard />} />
+      <Route
+        path="admin"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="admin/users"
@@ -91,7 +103,15 @@ export const AppRoutes = () => (
         path="teacher/courses"
         element={
           <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
-            <TeacherDashboard />
+            <TeacherCourseWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="teacher/discussions"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
+            <TeacherDiscussionHub />
           </ProtectedRoute>
         }
       />
@@ -112,10 +132,10 @@ export const AppRoutes = () => (
         }
       />
       <Route
-        path="teacher/forum"
+        path="teacher/messages"
         element={
           <ProtectedRoute allowedRoles={[ROLES.TEACHER]}>
-            <ForumManage />
+            <Messaging />
           </ProtectedRoute>
         }
       />
@@ -173,6 +193,42 @@ export const AppRoutes = () => (
         element={
           <ProtectedRoute allowedRoles={[ROLES.STUDENT]}>
             <Messaging />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Course Discussions */}
+      <Route
+        path="course/:courseId/discussions"
+        element={
+          <ProtectedRoute>
+            <Discussions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="course/:courseId/discussions/:discussionId"
+        element={
+          <ProtectedRoute>
+            <DiscussionDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Private Chat with Teachers */}
+      <Route
+        path="chat"
+        element={
+          <ProtectedRoute>
+            <PrivateChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="chat/:contactId"
+        element={
+          <ProtectedRoute>
+            <PrivateChat />
           </ProtectedRoute>
         }
       />

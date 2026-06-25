@@ -13,7 +13,8 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
-  Cloud
+  Cloud,
+  MessageSquare
 } from 'lucide-react';
 import contentService from '../../services/contentService';
 
@@ -223,6 +224,13 @@ const CourseContentEditor = () => {
           </div>
         </div>
           <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/course/${courseId}/discussions`)}
+            className="px-4 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors inline-flex items-center gap-2"
+          >
+            <MessageSquare size={16} />
+            Discussions
+          </button>
           <button
             onClick={() => navigate(`/teacher/course/${courseId}/preview`)}
             className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"

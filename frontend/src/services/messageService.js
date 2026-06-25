@@ -11,8 +11,17 @@ const messageService = {
     return response.data.messages || [];
   },
 
-  sendMessage: async (receiverId, content) => {
-    const response = await api.post('/messages/send', { receiver_id: receiverId, content });
+  sendMessage: async (receiverId, content, attachment = null) => {
+    const formData = new FormData();
+    formData.append('receiver_id', receiverId);
+    formData.append('content', content || '');
+    if (attachment) {
+      formData.append('attachment', attachment);
+    }
+
+    const response = await api.post('/messages/send', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 

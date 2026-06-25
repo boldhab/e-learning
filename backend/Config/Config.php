@@ -33,6 +33,6 @@ class Config {
     }
     
     public static function allowedExtensions() {
-        return ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'png'];
+        return ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
     }
 }

@@ -16,6 +16,8 @@ import {
   X,
   ClipboardList,
   GraduationCap,
+  PencilLine,
+  CalendarRange,
 } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, label, active, isOpen, badge }) => (
@@ -85,17 +87,27 @@ export const Sidebar = ({ isOpen, setOpen }) => {
   }, [location.pathname, isMobile, isOpen, setOpen]);
 
   const sections = useMemo(() => {
-    const dashboard = [{ to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }];
+    const dashboard = [{ to: user?.role === 'admin' ? '/admin' : '/dashboard', icon: LayoutDashboard, label: 'Dashboard' }];
 
     if (user?.role === 'admin') {
       return [
         {
-          title: 'Management',
+          title: 'Overview',
           items: [
             ...dashboard,
-            { to: '/admin/users', icon: Users, label: 'Users' },
-            { to: '/admin/courses', icon: GraduationCap, label: 'Classes & Subjects' },
-            { to: '/admin/settings', icon: Settings, label: 'Academic Years' },
+          ],
+        },
+        {
+          title: 'Operations',
+          items: [
+            { to: '/admin/users', icon: Users, label: 'User Directory' },
+            { to: '/admin/courses', icon: GraduationCap, label: 'Academic Setup' },
+          ],
+        },
+        {
+          title: 'Governance',
+          items: [
+            { to: '/admin/settings', icon: CalendarRange, label: 'Academic Years' },
           ],
         },
       ];
@@ -104,13 +116,23 @@ export const Sidebar = ({ isOpen, setOpen }) => {
     if (user?.role === 'teacher') {
       return [
         {
-          title: 'Teaching',
+          title: 'Overview',
           items: [
             ...dashboard,
-            { to: '/teacher/courses', icon: BookOpen, label: 'My Courses' },
+          ],
+        },
+        {
+          title: 'Teaching',
+          items: [
+            { to: '/teacher/courses', icon: BookOpen, label: 'Course Workspaces' },
+            { to: '/teacher/discussions', icon: PencilLine, label: 'Discussion Hubs' },
             { to: '/teacher/assignments', icon: ClipboardList, label: 'Assignments' },
-            { to: '/teacher/grading', icon: BarChart3, label: 'Grading' },
-            { to: '/teacher/forum', icon: MessageSquare, label: 'Messages', badge: '3' },
+          ],
+        },
+        {
+          title: 'Communication',
+          items: [
+            { to: '/teacher/messages', icon: MessageSquare, label: 'Messages' },
           ],
         },
       ];
@@ -124,7 +146,7 @@ export const Sidebar = ({ isOpen, setOpen }) => {
           { to: '/student/courses', icon: BookOpen, label: 'My Learning' },
           { to: '/student/assignments', icon: FileText, label: 'Assignments', badge: '2' },
           { to: '/student/grades', icon: BarChart3, label: 'My Grades' },
-          { to: '/student/messages', icon: MessageSquare, label: 'Messaging', badge: '5' },
+          { to: '/student/messages', icon: MessageSquare, label: 'Messaging' },
         ],
       },
     ];

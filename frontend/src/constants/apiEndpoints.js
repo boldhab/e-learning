@@ -1,1 +1,21 @@
-export const API_ENDPOINTS = { AUTH: '/auth', COURSES: '/courses' };
+export const API_ENDPOINTS = {
+  AUTH: '/auth',
+  COURSES: '/courses',
+  MESSAGES: '/messages',
+  DISCUSSIONS: '/discussions',
+  MESSAGES_CONVERSATIONS: '/messages/conversations',
+  MESSAGES_CHAT: '/messages/chat',
+  MESSAGES_SEND: '/messages/send',
+  MESSAGES_UNREAD: '/messages/unread',
+  MESSAGES_CONTACTS: '/messages/contacts',
+  DISCUSSIONS_GET: '/discussions',
+  DISCUSSIONS_VIEW: '/discussions/view',
+  DISCUSSIONS_CREATE: '/discussions/create',
+  DISCUSSIONS_REPLY: '/discussions/reply',
+  DISCUSSIONS_REACT: '/discussions/react',
+  DISCUSSIONS_UNREACT: '/discussions/unreact',
+  DISCUSSIONS_BEST_ANSWER: '/discussions/best-answer',
+  DISCUSSIONS_SEARCH: '/discussions/search',
+  DISCUSSIONS_DELETE: '/discussions/delete',
+  DISCUSSIONS_REPLY_DELETE: '/discussions/reply/delete'
+};

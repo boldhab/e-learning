@@ -5,6 +5,12 @@
  * Master Entry Point & Router
  */
 
+// Enable error reporting for debugging (DEVELOPMENT - show all errors)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+ini_set('html_errors', 0);
+error_reporting(E_ALL);
+
 // Load .env file into environment
 $envFile = __DIR__ . '/.env';
 if (file_exists($envFile)) {
@@ -223,6 +229,35 @@ switch ($resource) {
             $controller->getUnreadCount();
         } elseif ($id === 'contacts' && $_SERVER['REQUEST_METHOD'] === 'GET') {
             $controller->getContacts();
+        }
+        break;
+
+    case 'discussions':
+        $controller = new \Controllers\DiscussionController();
+        if ($id === 'groups' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getGroups();
+        } elseif ($id === 'groups' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createGroup();
+        } elseif ($id === null && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getDiscussions();
+        } elseif ($id === 'view' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->getDiscussion();
+        } elseif ($id === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->createDiscussion();
+        } elseif ($id === 'reply' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->addReply();
+        } elseif ($id === 'react' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->addReaction();
+        } elseif ($id === 'unreact' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->removeReaction();
+        } elseif ($id === 'best-answer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->markBestAnswer();
+        } elseif ($id === 'search' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+            $controller->search();
+        } elseif ($id === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->deleteDiscussion();
+        } elseif ($id === 'reply' && $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            $controller->deleteReply();
         }
         break;
 

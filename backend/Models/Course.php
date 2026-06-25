@@ -45,4 +45,20 @@ class Course {
         ]);
         return $stmt->fetch();
     }
+
+    /**
+     * Get course by id with class and instructor details.
+     */
+    public function getById($courseId) {
+        $stmt = $this->db->prepare(
+            "SELECT c.*, cls.name AS class_name, u.name AS instructor_name
+             FROM {$this->table} c
+             LEFT JOIN classes cls ON cls.id = c.class_id
+             LEFT JOIN users u ON u.id = c.instructor_id
+             WHERE c.id = :course_id
+             LIMIT 1"
+        );
+        $stmt->execute(['course_id' => $courseId]);
+        return $stmt->fetch();
+    }
 }

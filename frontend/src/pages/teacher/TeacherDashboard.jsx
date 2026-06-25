@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
-  Users, Plus, BarChart, BookOpen, ChevronRight, 
-  Clock, FileText, CheckCircle2, AlertCircle
+  Plus, BarChart, BookOpen, ChevronRight, 
+  Clock, FileText, AlertCircle, MessageSquare, PencilLine, Eye
 } from 'lucide-react';
 import teacherService from '../../services/teacherService';
 import assignmentService from '../../services/assignmentService';
@@ -34,6 +34,7 @@ const TeacherDashboard = () => {
   }, []);
 
   const pendingGradingCount = recentSubmissions.filter(s => s.status === 'submitted').length;
+  const reviewedCount = recentSubmissions.filter(s => s.status === 'graded').length;
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
@@ -56,7 +57,7 @@ const TeacherDashboard = () => {
       {/* Teacher Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard icon={BookOpen} label="My Courses" value={courses.length} color="text-indigo-600" bg="bg-indigo-50" />
-        <StatCard icon={Users} label="Active Students" value="34" color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard icon={FileText} label="Recent Submissions" value={recentSubmissions.length} color="text-emerald-600" bg="bg-emerald-50" />
         <StatCard 
           icon={AlertCircle} 
           label="Pending Grading" 
@@ -67,14 +68,38 @@ const TeacherDashboard = () => {
         />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <QuickActionCard
+          icon={PencilLine}
+          title="Course Workspaces"
+          description="Open your lesson builder, update notes, upload materials, and manage chapters."
+          link="/teacher/courses"
+          actionLabel="Open Workspaces"
+        />
+        <QuickActionCard
+          icon={MessageSquare}
+          title="Discussion Hubs"
+          description="Enter course discussion centers, create teacher groups, and answer student questions."
+          link="/teacher/discussions"
+          actionLabel="Open Discussions"
+        />
+        <QuickActionCard
+          icon={Eye}
+          title="Teacher Messages"
+          description="Follow class-wide discussion groups and keep student communication in one place."
+          link="/teacher/messages"
+          actionLabel="Open Messages"
+        />
+      </div>
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Course Management */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black text-slate-800">Your Active Courses</h2>
-            <Link to="/teacher/courses" className="text-indigo-600 text-sm font-bold hover:underline">View All</Link>
+            <h2 className="text-2xl font-black text-slate-800">Active Teaching Spaces</h2>
+            <Link to="/teacher/courses" className="text-indigo-600 text-sm font-bold hover:underline">Open Workspaces</Link>
           </div>
 
           <div className="space-y-4">
@@ -84,7 +109,7 @@ const TeacherDashboard = () => {
               </div>
             ) : courses.length > 0 ? (
               courses.map(course => (
-                <div key={course.id} className="bg-white p-6 rounded-[2rem] border border-slate-50 flex items-center justify-between group hover:border-indigo-100 transition-all hover:shadow-xl hover:-translate-y-1">
+                <div key={course.id} className="bg-white p-6 rounded-[2rem] border border-slate-50 flex items-center justify-between gap-6 group hover:border-indigo-100 transition-all hover:shadow-xl hover:-translate-y-1">
                   <div className="flex items-center gap-5">
                     <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
                       <BookOpen size={32} />
@@ -94,12 +119,26 @@ const TeacherDashboard = () => {
                       <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{course.class_name || 'General Enrollment'}</p>
                     </div>
                   </div>
-                  <Link 
-                    to={`/teacher/course/${course.id}/edit`}
-                    className="p-3 bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl text-slate-400 transition-all"
-                  >
-                    <ChevronRight size={20} />
-                  </Link>
+                  <div className="flex flex-col items-end gap-3">
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to={`/course/${course.id}/discussions`}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black tracking-wide hover:bg-indigo-600 transition-all"
+                      >
+                        <MessageSquare size={14} />
+                        Discussions
+                      </Link>
+                      <Link
+                        to={`/teacher/course/${course.id}/edit`}
+                        className="p-3 bg-slate-50 group-hover:bg-indigo-600 group-hover:text-white rounded-2xl text-slate-400 transition-all"
+                      >
+                        <ChevronRight size={20} />
+                      </Link>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium text-right">
+                        Jump into discussion groups or edit the course learning content.
+                    </span>
+                  </div>
                 </div>
               ))
             ) : (
@@ -133,12 +172,20 @@ const TeacherDashboard = () => {
                 ) : (
                   <p className="text-sm text-slate-400 font-medium text-center py-4 italic">No recent submissions to review.</p>
                 )}
-                <button 
-                  onClick={() => navigate('/teacher/assignments')}
-                  className="w-full py-4 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-slate-100"
-                >
-                  OPEN GRADEBOOK
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => navigate('/teacher/assignments')}
+                    className="w-full py-4 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-black text-xs transition-all shadow-lg shadow-slate-100"
+                  >
+                    OPEN ASSIGNMENTS
+                  </button>
+                  <button 
+                    onClick={() => navigate('/teacher/discussions')}
+                    className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-2xl font-black text-xs transition-all"
+                  >
+                    OPEN DISCUSSIONS
+                  </button>
+                </div>
               </div>
            </div>
 
@@ -151,10 +198,10 @@ const TeacherDashboard = () => {
                 <h4 className="font-black text-slate-800">Quick Stats</h4>
              </div>
              <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
-               Your students are maintaining an average score of <span className="text-indigo-600 font-black text-lg">78%</span> this month.
+               You currently have <span className="text-indigo-600 font-black text-lg">{reviewedCount}</span> recently reviewed submissions and <span className="text-indigo-600 font-black text-lg">{pendingGradingCount}</span> waiting for feedback.
              </p>
              <div className="h-2 w-full bg-indigo-200 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-600 rounded-full" style={{ width: '78%' }}></div>
+                <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${recentSubmissions.length > 0 ? Math.max(8, Math.round((reviewedCount / recentSubmissions.length) * 100)) : 8}%` }}></div>
              </div>
            </div>
         </div>
@@ -171,6 +218,23 @@ const StatCard = ({ icon: Icon, label, value, color, bg, highlight }) => (
      </div>
      <p className="text-slate-400 text-xs font-black uppercase tracking-widest">{label}</p>
      <p className="text-3xl font-black text-slate-900 mt-1">{value}</p>
+  </div>
+);
+
+const QuickActionCard = ({ icon: Icon, title, description, link, actionLabel }) => (
+  <div className="bg-white p-7 rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-xl transition-all">
+    <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center mb-5">
+      <Icon size={24} />
+    </div>
+    <h3 className="text-xl font-black text-slate-900">{title}</h3>
+    <p className="text-sm text-slate-500 font-medium mt-2 mb-6">{description}</p>
+    <Link
+      to={link}
+      className="inline-flex items-center gap-2 text-sm font-black text-indigo-600 hover:text-indigo-700"
+    >
+      {actionLabel}
+      <ChevronRight size={16} />
+    </Link>
   </div>
 );
 

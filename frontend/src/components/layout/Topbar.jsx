@@ -19,16 +19,6 @@ const notificationsSeed = [
   { id: 3, title: 'Grade updated in Web Dev', time: '1d ago', link: '/student/grades', read: true },
 ];
 
-const quickLinks = [
-  { label: 'Dashboard', link: '/dashboard' },
-  { label: 'My Learning', link: '/student/courses' },
-  { label: 'Assignments', link: '/student/assignments' },
-  { label: 'My Grades', link: '/student/grades' },
-  { label: 'Messaging', link: '/student/messages' },
-  { label: 'Profile', link: '/profile' },
-  { label: 'Help Center', link: '/help' },
-];
-
 export const Topbar = ({ setSidebarOpen }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -43,6 +33,46 @@ export const Topbar = ({ setSidebarOpen }) => {
   const searchRef = useRef(null);
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
+
+  const quickLinks = useMemo(() => {
+    const baseLinks = [
+      { label: 'Dashboard', link: '/dashboard' },
+      { label: 'Profile', link: '/profile' },
+      { label: 'Help Center', link: '/help' },
+    ];
+
+    if (user?.role === 'teacher') {
+      return [
+        ...baseLinks,
+        { label: 'Course Workspaces', link: '/teacher/courses' },
+        { label: 'Discussion Hubs', link: '/teacher/discussions' },
+        { label: 'Assignments', link: '/teacher/assignments' },
+        { label: 'Messaging', link: '/teacher/messages' },
+      ];
+    }
+
+    if (user?.role === 'admin') {
+      return [
+        { label: 'Dashboard', link: '/admin' },
+        ...baseLinks.slice(1),
+        { label: 'User Directory', link: '/admin/users' },
+        { label: 'Academic Setup', link: '/admin/courses' },
+        { label: 'Academic Years', link: '/admin/settings' },
+      ];
+    }
+
+    if (user?.role === 'student') {
+      return [
+        ...baseLinks,
+        { label: 'My Learning', link: '/student/courses' },
+        { label: 'Assignments', link: '/student/assignments' },
+        { label: 'My Grades', link: '/student/grades' },
+        { label: 'Messaging', link: '/student/messages' },
+      ];
+    }
+
+    return baseLinks;
+  }, [user?.role]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -71,6 +101,10 @@ export const Topbar = ({ setSidebarOpen }) => {
   const pageTitle = useMemo(() => {
     const path = location.pathname;
     if (path === '/dashboard') return 'Dashboard';
+    if (path.includes('/admin/users')) return 'User Directory';
+    if (path.includes('/admin/courses')) return 'Academic Setup';
+    if (path.includes('/admin/settings')) return 'Academic Years';
+    if (path.includes('/teacher/discussions')) return 'Discussion Hubs';
     if (path.includes('/courses')) return 'Courses';
     if (path.includes('/assignments')) return 'Assignments';
     if (path.includes('/grades')) return 'Grades';

@@ -8,6 +8,7 @@ use Models\Assignment;
 use Models\User;
 use Models\AcademicYear;
 use Models\Course;
+use Models\DiscussionGroup;
 use Core\JwtHandler;
 use Core\Database;
 
@@ -18,6 +19,7 @@ class AdminController {
     private $userModel;
     private $yearModel;
     private $courseModel;
+    private $discussionGroupModel;
     private $db;
 
     public function __construct() {
@@ -27,6 +29,7 @@ class AdminController {
         $this->userModel = new User();
         $this->yearModel = new AcademicYear();
         $this->courseModel = new Course();
+        $this->discussionGroupModel = new DiscussionGroup();
         $this->db = Database::getInstance()->getConnection();
     }
 
@@ -164,7 +167,8 @@ class AdminController {
      * Create a new class
      */
     public function createClass() {
-        if (!$this->verifyAdmin()) {
+        $admin = $this->verifyAdmin();
+        if (!$admin) {
             http_response_code(403);
             echo json_encode(['error' => 'Forbidden: Admin access only']);
             return;
@@ -217,6 +221,19 @@ class AdminController {
                 return;
             }
 
+            $groupCreated = $this->discussionGroupModel->createForClass(
+                $classId,
+                trim($data['name']) . ' Discussion Group',
+                (int) $admin['id']
+            );
+
+            if (!$groupCreated) {
+                $this->db->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to create class discussion group']);
+                return;
+            }
+
             foreach ($studentIds as $studentId) {
                 $enrolled = $this->userModel->enrollInYear($studentId, $classId, $activeYear['id']);
                 $assigned = $this->userModel->assignToClass($studentId, $classId);
@@ -235,7 +252,7 @@ class AdminController {
                 'status' => 'success',
                 'class_id' => $classId,
                 'assigned_students' => count($studentIds),
-                'message' => 'Class created and students assigned successfully'
+                'message' => 'Class created, discussion group created, and students assigned successfully'
             ]);
         } catch (\PDOException $e) {
             if ($this->db->inTransaction()) {

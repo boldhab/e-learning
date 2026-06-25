@@ -126,3 +126,88 @@ CREATE TABLE IF NOT EXISTS task_submissions (
     
     UNIQUE KEY unique_submission (assignment_id, student_id)
 ) ENGINE=InnoDB;
+
+-- 10. Discussion Groups
+CREATE TABLE IF NOT EXISTS discussion_groups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT NOT NULL,
+    teacher_id INT NOT NULL,
+    class_id INT DEFAULT NULL,
+    subject_id INT DEFAULT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT NULL,
+    created_by_admin_id INT DEFAULT NULL,
+    is_system_created BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_course_group_name (course_id, name)
+) ENGINE=InnoDB;
+
+-- 11. Discussions
+CREATE TABLE IF NOT EXISTS discussions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    course_id INT NOT NULL,
+    group_id INT DEFAULT NULL,
+    student_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    attachment_url VARCHAR(255) DEFAULT NULL,
+    attachment_type VARCHAR(50) DEFAULT NULL,
+    views INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX (course_id),
+    INDEX (group_id),
+    INDEX (student_id),
+    INDEX (created_at),
+
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES discussion_groups(id) ON DELETE SET NULL,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 12. Discussion Replies
+CREATE TABLE IF NOT EXISTS discussion_replies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    discussion_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content TEXT NOT NULL,
+    attachment_url VARCHAR(255) DEFAULT NULL,
+    attachment_type VARCHAR(50) DEFAULT NULL,
+    is_best_answer BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (discussion_id) REFERENCES discussions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 13. Discussion Reactions
+CREATE TABLE IF NOT EXISTS discussion_reactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    reply_id INT NOT NULL,
+    user_id INT NOT NULL,
+    reaction_type ENUM('like', 'helpful', 'confused') DEFAULT 'like',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY unique_reaction (reply_id, user_id, reaction_type),
+    FOREIGN KEY (reply_id) REFERENCES discussion_replies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 14. Discussion Search Index
+CREATE TABLE IF NOT EXISTS discussion_search_index (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    discussion_id INT NOT NULL,
+    search_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FULLTEXT INDEX ft_search (search_text),
+    FOREIGN KEY (discussion_id) REFERENCES discussions(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
